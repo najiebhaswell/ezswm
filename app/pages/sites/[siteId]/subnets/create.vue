@@ -15,7 +15,20 @@
               <UInput v-model="form.name" :placeholder="$t('networks.fields.name')" class="w-full" />
             </UFormField>
             <UFormField :label="$t('networks.fields.subnet')" name="subnet" required>
-              <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="w-full" />
+              <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="w-full">
+                <template v-if="selectedParent" #trailing>
+                  <UPopover>
+                    <UButton color="primary" variant="ghost" icon="i-heroicons-sparkles" :padded="false" :title="$t('networks.suggestSubnet')" />
+                    <template #panel="{ close }">
+                      <div class="p-3 flex items-center gap-2">
+                        <span class="text-sm">Prefix: /</span>
+                        <UInput v-model="suggestPrefix" type="number" min="1" max="32" class="w-20" size="sm" />
+                        <UButton size="sm" :loading="suggestingSubnet" @click="doSuggestSubnet(close)">{{ $t('common.suggest') }}</UButton>
+                      </div>
+                    </template>
+                  </UPopover>
+                </template>
+              </UInput>
               <template v-if="selectedParent" #hint>
                 <span class="text-xs text-blue-400">
                   {{ $t('networks.fields.parentNetworkHint') }}: {{ selectedParent.subnet }}
@@ -123,6 +136,9 @@ const dnsInput = ref('')
 const autoCreateUsedPrefix = ref(false)
 const autoCreateUsedPrefixInSelf = ref(false)
 
+const suggestPrefix = ref(24)
+const suggestingSubnet = ref(false)
+
 // Pre-select parent from query param (e.g. ?parent=<networkId>)
 const preselectedParentId = route.query.parent as string | undefined
 
@@ -165,6 +181,26 @@ const selectedParent = computed((): Network | null => {
   if (!form.value.parent_network_id || form.value.parent_network_id === '_none') return null
   return allNetworks.value.find(n => n.id === form.value.parent_network_id) ?? null
 })
+
+async function doSuggestSubnet(closePopover: () => void) {
+  if (!selectedParent.value) return
+  suggestingSubnet.value = true
+  try {
+    const { subnet } = await $fetch<{ subnet: string }>(`/api/networks/${selectedParent.value.id}/next-subnet`, {
+      query: { prefix: suggestPrefix.value }
+    })
+    form.value.subnet = subnet
+    closePopover()
+  } catch (err: any) {
+    toast.add({
+      title: t('networks.suggestFailed'),
+      description: err?.data?.statusMessage || err?.message || 'Error',
+      color: 'error'
+    })
+  } finally {
+    suggestingSubnet.value = false
+  }
+}
 
 function validate(state: typeof form.value) {
   const errors: { name: string; message: string }[] = []

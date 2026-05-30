@@ -167,3 +167,90 @@ export function doCidrsOverlap(cidr1: string, cidr2: string): boolean {
   return (net1 & mask2) >>> 0 === net2 || (net2 & mask1) >>> 0 === net1
 }
 
+/**
+ * Find the next available child subnet of a specific prefix length within a parent subnet.
+ * Skips blocks that overlap with any of the existing subnets.
+ */
+export function findNextAvailableSubnet(
+  parentCidr: string,
+  existingCidrs: string[],
+  requestedPrefix: number
+): string | null {
+  const [parentIp, parentPrefixStr] = parentCidr.split('/') as [string, string]
+  const parentPrefix = Number(parentPrefixStr)
+  
+  if (requestedPrefix <= parentPrefix || requestedPrefix > 32) return null
+
+  const stepSize = requestedPrefix === 32 ? 1 : (~0 << (32 - requestedPrefix)) >>> 0 ? ((~(~0 << (32 - requestedPrefix))) >>> 0) + 1 : 1
+  
+  const parentMask = parentPrefix === 0 ? 0 : (~0 << (32 - parentPrefix)) >>> 0
+  const parentNetwork = (ipToLong(parentIp) & parentMask) >>> 0
+  const parentWildcard = (~parentMask) >>> 0
+  const parentBroadcast = (parentNetwork | parentWildcard) >>> 0
+
+  let current = parentNetwork
+  while (current <= parentBroadcast) {
+    const candidateCidr = `${longToIp(current)}/${requestedPrefix}`
+    
+    // Check if it's fully contained in parent (should be by design, but double check bounds)
+    const candidateMask = (~0 << (32 - requestedPrefix)) >>> 0
+    const candidateBroadcast = (current | (~candidateMask) >>> 0) >>> 0
+    
+    if (candidateBroadcast > parentBroadcast) break
+
+    // Check overlap with existing
+    const hasOverlap = existingCidrs.some(existing => doCidrsOverlap(candidateCidr, existing))
+    
+    if (!hasOverlap) {
+      return candidateCidr
+    }
+    
+    current += stepSize
+  }
+  
+  return null
+}
+
+/**
+ * Find the next available IP address in a subnet, skipping allocated IPs and specified ranges.
+ */
+export function findNextAvailableIP(
+  cidr: string,
+  allocatedIps: string[],
+  ranges: { start_ip: string; end_ip: string }[]
+): string | null {
+  const info = parseSubnet(cidr)
+  const firstUsableLong = ipToLong(info.first_usable)
+  const lastUsableLong = ipToLong(info.last_usable)
+  
+  const allocatedSet = new Set(allocatedIps.map(ipToLong))
+  const sortedRanges = ranges
+    .map(r => ({ s: ipToLong(r.start_ip), e: ipToLong(r.end_ip) }))
+    .sort((a, b) => a.s - b.s)
+
+  let current = firstUsableLong
+  while (current <= lastUsableLong) {
+    let advanced = false
+    
+    // Fast-forward past any ranges
+    for (const r of sortedRanges) {
+      if (current >= r.s && current <= r.e) {
+        current = r.e + 1
+        advanced = true
+        break
+      }
+    }
+    if (advanced) continue
+
+    // Check allocation
+    if (allocatedSet.has(current)) {
+      current++
+      continue
+    }
+
+    return longToIp(current)
+  }
+
+  return null
+}
+

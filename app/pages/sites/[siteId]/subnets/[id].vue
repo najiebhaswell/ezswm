@@ -257,6 +257,7 @@
       @submit-range="onCreateRange"
       @delete-alloc="openDeleteAllocDialog(editAllocTarget!)"
       @close="showAddPanel = false; editAllocTarget = null"
+      @suggest-ip="doSuggestIp"
     />
 
     <SharedConfirmDialog v-model="showDeleteDialog" :title="$t('networks.delete')" :message="network ? `${$t('networks.delete')}: ${network.name} (${network.subnet})?` : ''" :loading="deleting" @confirm="confirmDeleteNetwork" />
@@ -586,6 +587,16 @@ async function confirmDeleteNetwork() {
   try { await removeNetwork(networkId); toast.add({ title: t('networks.messages.deleted'), color: 'success' }); showDeleteDialog.value = false; await router.push(`/sites/${siteId.value}/subnets`) }
   catch (err: unknown) { const error = err as { data?: { message?: string } }; toast.add({ title: error?.data?.message || t('errors.serverError'), color: 'error' }) }
   finally { deleting.value = false }
+}
+
+async function doSuggestIp() {
+  addPanelError.value = ''
+  try {
+    const { ip } = await $fetch<{ ip: string }>(`/api/networks/${networkId}/next-ip`)
+    allocForm.value.ip_address = ip
+  } catch (err: any) {
+    addPanelError.value = err?.data?.statusMessage || err?.message || 'Error suggesting IP'
+  }
 }
 
 async function onCreateAllocation() {

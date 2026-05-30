@@ -42,7 +42,11 @@
       <!-- IP Address form -->
       <form v-if="modeModel === 'ip'" class="space-y-4" @submit.prevent="emit('submit-allocation')">
         <UFormField :label="$t('networks.allocations.fields.ipAddress') + ' *'">
-          <UInput v-model="allocForm.ip_address" placeholder="10.0.1.10" required :color="error ? 'error' : undefined" class="w-full" />
+          <UInput v-model="allocForm.ip_address" placeholder="10.0.1.10" required :color="error ? 'error' : undefined" class="w-full">
+            <template #trailing v-if="!editTarget">
+              <UButton color="primary" variant="ghost" icon="i-heroicons-sparkles" :padded="false" :title="$t('networks.suggestIp')" @click="emit('suggest-ip')" />
+            </template>
+          </UInput>
         </UFormField>
         <UFormField :label="$t('networks.allocations.fields.hostname')">
           <UInput v-model="allocForm.hostname" class="w-full" />
@@ -116,6 +120,7 @@ const emit = defineEmits<{
   'submit-range': []
   'delete-alloc': []
   'close': []
+  'suggest-ip': []
 }>()
 
 const openModel = computed({
