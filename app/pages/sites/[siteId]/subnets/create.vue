@@ -192,27 +192,26 @@ async function onSubmit() {
     if (siteId.value && siteId.value !== 'all') {
       body.site_id = siteId.value
     }
-    const { apiFetch } = useApiFetch()
     result = await create(body)
 
     // Auto-create used_prefix range in parent if requested
     if (autoCreateUsedPrefix.value && parentId && result) {
       const newNet = result as Network
+      const rangeBody = {
+        start_ip: newNet.subnet.split('/')[0],
+        end_ip: computeBroadcast(newNet.subnet),
+        type: 'used_prefix',
+        description: `Delegated to: ${newNet.name} (${newNet.subnet})`
+      }
       try {
-        // Use network address → broadcast to mark the full delegated block in parent
-        await apiFetch(`/api/networks/${parentId}/ranges`, {
+        await $fetch(`/api/networks/${parentId}/ranges`, {
           method: 'POST',
-          body: {
-            start_ip: newNet.subnet.split('/')[0], // network address (start of block)
-            end_ip: computeBroadcast(newNet.subnet),   // broadcast (end of block)
-            type: 'used_prefix',
-            description: `Delegated to: ${newNet.name} (${newNet.subnet})`
-          }
+          body: rangeBody
         })
       } catch (pfxErr: unknown) {
-        // Non-fatal: notify but don't block navigation — show actual error for debugging
-        const pfxError = pfxErr as { data?: { message?: string }; message?: string }
-        const detail = pfxError?.data?.message || pfxError?.message || ''
+        console.error('[used_prefix] Failed to auto-create range:', rangeBody, pfxErr)
+        const pfxError = pfxErr as { data?: { message?: string; statusMessage?: string }; message?: string; statusMessage?: string }
+        const detail = pfxError?.data?.message || pfxError?.data?.statusMessage || pfxError?.message || 'Unknown error'
         toast.add({
           title: t('networks.autoCreateUsedPrefixFailed'),
           description: detail,
