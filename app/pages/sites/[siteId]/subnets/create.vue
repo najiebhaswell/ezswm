@@ -197,20 +197,30 @@ async function onSubmit() {
     // Auto-create used_prefix range in parent if requested
     if (autoCreateUsedPrefix.value && parentId && result) {
       const newNet = result as Network
-      const rangeBody = {
-        start_ip: newNet.subnet.split('/')[0],
-        end_ip: computeBroadcast(newNet.subnet),
-        type: 'used_prefix',
-        description: `Delegated to: ${newNet.name} (${newNet.subnet})`
-      }
+      const startIp = newNet.subnet.split('/')[0]
+      const endIp = computeBroadcast(newNet.subnet)
       try {
-        await $fetch(`/api/networks/${parentId}/ranges`, {
-          method: 'POST',
-          body: rangeBody
-        })
+        // Check if a used_prefix range already exists for this exact block in parent
+        const existingRanges = await $fetch<any[]>(`/api/networks/${parentId}/ranges`)
+        const rangeList = Array.isArray(existingRanges) ? existingRanges : (existingRanges as any)?.data || []
+        const existing = rangeList.find((r: any) =>
+          r.type === 'used_prefix' && r.start_ip === startIp && r.end_ip === endIp
+        )
+        if (!existing) {
+          await $fetch(`/api/networks/${parentId}/ranges`, {
+            method: 'POST',
+            body: {
+              start_ip: startIp,
+              end_ip: endIp,
+              type: 'used_prefix',
+              description: `Delegated to: ${newNet.name} (${newNet.subnet})`
+            }
+          })
+        }
+        // If it already exists, silently skip — range is already marked
       } catch (pfxErr: unknown) {
-        console.error('[used_prefix] Failed to auto-create range:', rangeBody, pfxErr)
-        const pfxError = pfxErr as { data?: { message?: string; statusMessage?: string }; message?: string; statusMessage?: string }
+        console.error('[used_prefix] Failed to auto-create range:', pfxErr)
+        const pfxError = pfxErr as { data?: { message?: string; statusMessage?: string }; message?: string }
         const detail = pfxError?.data?.message || pfxError?.data?.statusMessage || pfxError?.message || 'Unknown error'
         toast.add({
           title: t('networks.autoCreateUsedPrefixFailed'),

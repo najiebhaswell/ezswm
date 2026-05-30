@@ -30,6 +30,20 @@ export default defineEventHandler(async (event) => {
   ipAllocationRepository.deleteByNetworkId(id)
   ipRangeRepository.deleteByNetworkId(id)
 
+  // Clean up used_prefix range in parent if this was a child subnet
+  if (existing.parent_network_id) {
+    const parentRanges = ipRangeRepository.list(existing.parent_network_id)
+    const { parseSubnet } = await import('../../utils/ipv4')
+    const childInfo = parseSubnet(existing.subnet)
+    for (const range of parentRanges) {
+      if (range.type === 'used_prefix' &&
+          range.start_ip === childInfo.network_address &&
+          range.end_ip === childInfo.broadcast_address) {
+        ipRangeRepository.delete(range.id)
+      }
+    }
+  }
+
   networkRepository.delete(id)
 
   activityRepository.log({
