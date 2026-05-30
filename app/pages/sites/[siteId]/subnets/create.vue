@@ -63,6 +63,17 @@
                 </div>
               </label>
             </div>
+            
+            <!-- Auto-create used_prefix option for itself -->
+            <div class="md:col-span-2" :class="{ 'mt-4': !selectedParent }">
+              <label class="flex cursor-pointer items-start gap-3">
+                <input v-model="autoCreateUsedPrefixInSelf" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-500 focus:ring-primary-500" />
+                <div>
+                  <span class="text-sm font-medium text-gray-200">{{ $t('networks.autoCreateUsedPrefixInSelf') }}</span>
+                  <p class="mt-0.5 text-xs text-gray-400">{{ $t('networks.autoCreateUsedPrefixInSelfHint') }}</p>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -110,6 +121,7 @@ const { items: allNetworks, fetch: fetchNetworks } = useNetworks()
 const submitting = ref(false)
 const dnsInput = ref('')
 const autoCreateUsedPrefix = ref(false)
+const autoCreateUsedPrefixInSelf = ref(false)
 
 // Pre-select parent from query param (e.g. ?parent=<networkId>)
 const preselectedParentId = route.query.parent as string | undefined
@@ -224,6 +236,33 @@ async function onSubmit() {
         const detail = pfxError?.data?.message || pfxError?.data?.statusMessage || pfxError?.message || 'Unknown error'
         toast.add({
           title: t('networks.autoCreateUsedPrefixFailed'),
+          description: detail,
+          color: 'warning'
+        })
+      }
+    }
+
+    // Auto-create used_prefix range in itself if requested
+    if (autoCreateUsedPrefixInSelf.value && result) {
+      const newNet = result as Network
+      const startIp = newNet.subnet.split('/')[0]
+      const endIp = computeBroadcast(newNet.subnet)
+      try {
+        await $fetch(`/api/networks/${newNet.id}/ranges`, {
+          method: 'POST',
+          body: {
+            start_ip: startIp,
+            end_ip: endIp,
+            type: 'used_prefix',
+            description: `Allocated / fully utilized`
+          }
+        })
+      } catch (pfxErr: unknown) {
+        console.error('[used_prefix_self] Failed to auto-create range:', pfxErr)
+        const pfxError = pfxErr as { data?: { message?: string; statusMessage?: string }; message?: string }
+        const detail = pfxError?.data?.message || pfxError?.data?.statusMessage || pfxError?.message || 'Unknown error'
+        toast.add({
+          title: t('networks.autoCreateUsedPrefixInSelfFailed'),
           description: detail,
           color: 'warning'
         })
