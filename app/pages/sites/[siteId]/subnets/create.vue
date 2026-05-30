@@ -15,20 +15,19 @@
               <UInput v-model="form.name" :placeholder="$t('networks.fields.name')" class="w-full" />
             </UFormField>
             <UFormField :label="$t('networks.fields.subnet')" name="subnet" required>
-              <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="w-full">
-                <template v-if="selectedParent" #trailing>
-                  <UPopover>
-                    <UButton color="primary" variant="ghost" icon="i-heroicons-sparkles" :padded="false" :title="$t('networks.suggestSubnet')" />
-                    <template #panel="{ close }">
-                      <div class="p-3 flex items-center gap-2">
-                        <span class="text-sm">Prefix: /</span>
-                        <UInput v-model="suggestPrefix" type="number" min="1" max="32" class="w-20" size="sm" />
-                        <UButton size="sm" :loading="suggestingSubnet" @click="doSuggestSubnet(close)">{{ $t('common.suggest') }}</UButton>
-                      </div>
-                    </template>
-                  </UPopover>
-                </template>
-              </UInput>
+              <div class="flex gap-2">
+                <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="flex-1" />
+                <UPopover v-if="selectedParent">
+                  <UButton color="primary" variant="soft" icon="i-heroicons-sparkles" :title="$t('networks.suggestSubnet')" />
+                  <template #panel="{ close }">
+                    <div class="flex items-center gap-2 p-3">
+                      <span class="text-sm">Prefix: /</span>
+                      <UInput v-model="suggestPrefix" type="number" min="1" max="32" class="w-20" size="sm" />
+                      <UButton size="sm" :loading="suggestingSubnet" @click="doSuggestSubnet(close)">{{ $t('common.suggest') }}</UButton>
+                    </div>
+                  </template>
+                </UPopover>
+              </div>
               <template v-if="selectedParent" #hint>
                 <span class="text-xs text-blue-400">
                   {{ $t('networks.fields.parentNetworkHint') }}: {{ selectedParent.subnet }}
