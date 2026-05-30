@@ -192,13 +192,13 @@ async function onSubmit() {
     if (siteId.value && siteId.value !== 'all') {
       body.site_id = siteId.value
     }
+    const { apiFetch } = useApiFetch()
     result = await create(body)
 
     // Auto-create used_prefix range in parent if requested
     if (autoCreateUsedPrefix.value && parentId && result) {
       const newNet = result as Network
       try {
-        const { apiFetch } = useApiFetch()
         // Use network address → broadcast to mark the full delegated block in parent
         await apiFetch(`/api/networks/${parentId}/ranges`, {
           method: 'POST',
@@ -209,9 +209,15 @@ async function onSubmit() {
             description: `Delegated to: ${newNet.name} (${newNet.subnet})`
           }
         })
-      } catch {
-        // Non-fatal: notify but don't block navigation
-        toast.add({ title: t('networks.autoCreateUsedPrefixFailed'), color: 'warning' })
+      } catch (pfxErr: unknown) {
+        // Non-fatal: notify but don't block navigation — show actual error for debugging
+        const pfxError = pfxErr as { data?: { message?: string }; message?: string }
+        const detail = pfxError?.data?.message || pfxError?.message || ''
+        toast.add({
+          title: t('networks.autoCreateUsedPrefixFailed'),
+          description: detail,
+          color: 'warning'
+        })
       }
     }
 
