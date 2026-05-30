@@ -6,6 +6,8 @@ export default defineEventHandler(async (event) => {
   const siteId = query.site_id as string | undefined
   const vlanId = query.vlan_id as string | undefined
   const search = query.search as string | undefined
+  const parentNetworkId = query.parent_network_id as string | undefined
+  const rootOnly = query.root === 'true'
 
   let items = networkRepository.list()
 
@@ -26,8 +28,15 @@ export default defineEventHandler(async (event) => {
     )
   }
 
+  if (parentNetworkId) {
+    items = items.filter((n) => n.parent_network_id === parentNetworkId)
+  } else if (rootOnly) {
+    items = items.filter((n) => !n.parent_network_id)
+  }
+
   return {
     data: items,
     meta: { total: items.length },
   }
 })
+

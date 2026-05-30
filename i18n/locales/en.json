@@ -362,7 +362,8 @@
     "delete": "Delete Subnet",
     "sections": {
       "networkInfo": "Subnet Information",
-      "vlanDescription": "VLAN & Description"
+      "vlanDescription": "VLAN & Description",
+      "hierarchy": "Hierarchy (Optional)"
     },
     "fields": {
       "name": "Name",
@@ -370,13 +371,27 @@
       "gateway": "Gateway",
       "dnsServers": "DNS Servers",
       "vlan": "VLAN",
-      "utilization": "Utilization"
+      "utilization": "Utilization",
+      "parentNetwork": "Parent Network",
+      "parentNetworkPlaceholder": "None (root network)",
+      "parentNetworkHint": "Child must be contained within parent"
     },
     "messages": {
       "created": "Subnet created successfully",
       "updated": "Subnet updated successfully",
-      "deleted": "Subnet deleted successfully"
+      "deleted": "Subnet deleted successfully",
+      "hasChildren": "Cannot delete: this network has {count} child subnet(s). Delete them first."
     },
+    "children": {
+      "title": "Child Subnets",
+      "empty": "No child subnets defined",
+      "add": "Add Child Subnet",
+      "count": "{count} subnet | {count} subnets"
+    },
+    "autoCreateUsedPrefix": "Mark range as 'Used Prefix' in parent",
+    "autoCreateUsedPrefixHint": "Automatically creates a Used Prefix range entry in the parent network covering the full CIDR of this subnet.",
+    "autoCreateUsedPrefixFailed": "Subnet created, but failed to auto-create Used Prefix range in parent.",
+    "parentLink": "Parent",
     "emptyTitle": "No subnets configured yet",
     "emptyDescription": "Create your first subnet to get started.",
     "allocations": {
@@ -425,7 +440,8 @@
       "types": {
         "dhcp": "DHCP",
         "static": "Static",
-        "reserved": "Reserved"
+        "reserved": "Reserved",
+        "used_prefix": "Used Prefix"
       },
       "ipsDocumented": "{count} IPs documented",
       "ipCount": "{count} IPs",
@@ -455,7 +471,9 @@
       "commaSeparated": "Comma-separated",
       "vlanIdRange": "VLAN ID must be between 1 and 4094",
       "colorFormat": "Valid hex color required (e.g. #FF5733)",
-      "managementIpFormat": "Must be a valid IPv4 address (e.g. 192.168.1.1)"
+      "managementIpFormat": "Must be a valid IPv4 address (e.g. 192.168.1.1)",
+      "childNotInParent": "Subnet {child} is not contained within parent {parent}",
+      "childOverlapsSibling": "Subnet overlaps with an existing sibling subnet"
     },
     "subnetInfo": {
       "networkAddress": "Network Address",

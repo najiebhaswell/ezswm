@@ -4,7 +4,16 @@
     <div class="mb-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <UButton icon="i-heroicons-arrow-left" variant="ghost" size="sm" :to="`/sites/${siteId}/subnets`" />
-        <h1 class="text-xl font-bold">{{ network?.name || $t('common.loading') }}</h1>
+        <div>
+          <!-- Parent network breadcrumb -->
+          <div v-if="parentNetwork" class="mb-0.5 flex items-center gap-1 text-xs text-gray-400">
+            <UIcon name="i-heroicons-arrow-up" class="h-3 w-3" />
+            <NuxtLink :to="`/sites/${siteId}/subnets/${parentNetwork.id}`" class="hover:text-primary-400 transition-colors">
+              {{ parentNetwork.name }} ({{ parentNetwork.subnet }})
+            </NuxtLink>
+          </div>
+          <h1 class="text-xl font-bold">{{ network?.name || $t('common.loading') }}</h1>
+        </div>
       </div>
       <div v-if="network" class="flex items-center gap-1">
         <UButton icon="i-heroicons-pencil" variant="ghost" color="primary" size="sm" :title="$t('common.edit')" @click="startEdit()" />
@@ -33,8 +42,45 @@
         :utilization-percent="utilizationPercent"
         :dhcp-range-percent="dhcpRangePercent"
         :reserved-range-percent="reservedRangePercent"
+        :used-prefix-range-percent="usedPrefixRangePercent"
+        :used-prefix-ip-count="usedPrefixIpCount"
         :allocations-count="allocations.length"
       />
+
+      <!-- Child Subnets Section -->
+      <div>
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-base font-semibold text-gray-700 dark:text-gray-300">
+            {{ $t('networks.children.title') }}
+            <span v-if="childNetworks.length" class="ml-1.5 rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">{{ childNetworks.length }}</span>
+          </h2>
+          <UButton
+            icon="i-heroicons-plus"
+            size="sm"
+            variant="ghost"
+            color="primary"
+            :to="`/sites/${siteId}/subnets/create?parent=${networkId}`"
+          >
+            {{ $t('networks.children.add') }}
+          </UButton>
+        </div>
+        <div v-if="childNetworks.length > 0" class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
+          <NuxtLink
+            v-for="child in childNetworks"
+            :key="child.id"
+            :to="`/sites/${siteId}/subnets/${child.id}`"
+            class="row-hover group flex items-center gap-3 px-4 py-2.5"
+          >
+            <UIcon name="i-heroicons-arrow-turn-down-right" class="h-4 w-4 flex-shrink-0 text-gray-500" />
+            <code class="rounded bg-violet-500/10 px-2 py-0.5 text-sm font-medium text-violet-400">{{ child.subnet }}</code>
+            <span class="text-sm text-gray-200">{{ child.name }}</span>
+            <span v-if="child.description" class="truncate text-xs text-gray-500">{{ child.description }}</span>
+          </NuxtLink>
+        </div>
+        <div v-else class="rounded-lg border border-dashed border-default px-4 py-3 text-center text-xs text-gray-500">
+          {{ $t('networks.children.empty') }}
+        </div>
+      </div>
 
       <!-- Unified IP Overview -->
       <div>
@@ -94,9 +140,9 @@
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <UBadge :color="rangeTypeBadgeColor((row.data as IPRange).type)" variant="subtle" size="sm">{{ $t(`networks.ranges.types.${(row.data as IPRange).type}`) }}</UBadge>
-                  <span class="font-mono text-[11px] text-gray-400">{{ $t('networks.ranges.ipCount', { count: rangeIpCount((row.data as IPRange).start_ip, (row.data as IPRange).end_ip) }) }}</span>
+                  <span v-if="(row.data as IPRange).type !== 'used_prefix'" class="font-mono text-[11px] text-gray-400">{{ $t('networks.ranges.ipCount', { count: rangeIpCount((row.data as IPRange).start_ip, (row.data as IPRange).end_ip) }) }}</span>
                   <span v-if="(row.data as IPRange).description" class="text-xs text-gray-500 dark:text-gray-400">{{ (row.data as IPRange).description }}</span>
-                  <span v-if="(row.data as IPRange).type !== 'dhcp' && countAllocsInRange(row.data as IPRange) > 0" class="text-xs text-gray-400">
+                  <span v-if="(row.data as IPRange).type !== 'dhcp' && (row.data as IPRange).type !== 'used_prefix' && countAllocsInRange(row.data as IPRange) > 0" class="text-xs text-gray-400">
                     ({{ $t('networks.ranges.ipsDocumented', { count: countAllocsInRange(row.data as IPRange) }) }})
                   </span>
                 </div>
@@ -246,13 +292,15 @@ const route = useRoute()
 const siteId = computed(() => route.params.siteId as string)
 const router = useRouter()
 const networkId = route.params.id as string
-const { update: updateNetwork, remove: removeNetwork } = useNetworks()
+const { update: updateNetwork, remove: removeNetwork, fetchChildren } = useNetworks()
 const { items: vlans, fetch: fetchVlans } = useVlans()
 const { items: allocations, fetch: fetchAllocations, create: createAllocation, update: updateAllocation, remove: removeAllocation } = useIpAllocations(networkId)
 const { items: ranges, fetch: fetchRanges, create: createRange, update: updateRange, remove: removeRange } = useIpRanges(networkId)
 
 const pageLoading = ref(true)
 const network = ref<Network | null>(null)
+const parentNetwork = ref<Network | null>(null)
+const childNetworks = ref<Network[]>([])
 
 useHead({ title: computed(() => network.value?.name || t('networks.title')) })
 const editing = ref(false)
@@ -290,9 +338,21 @@ const editDnsInput = ref('')
 const allocForm = ref({ ip_address: '', hostname: '', mac_address: '', device_type: '', description: '', status: 'active' as AllocationStatus })
 const rangeForm = ref({ start_ip: '', end_ip: '', type: 'static' as RangeType, description: '' })
 
+// Count IPs covered by used_prefix ranges
+const usedPrefixIpCount = computed(() => {
+  let count = 0
+  for (const r of ranges.value) {
+    if (r.type === 'used_prefix') {
+      count += ipToLong(r.end_ip) - ipToLong(r.start_ip) + 1
+    }
+  }
+  return count
+})
+
 const utilizationPercent = computed(() => {
   if (!subnetInfo.value.usableHosts || subnetInfo.value.usableHosts <= 0) return 0
-  return Math.round((allocations.value.length / subnetInfo.value.usableHosts) * 100)
+  const usedIps = allocations.value.length + usedPrefixIpCount.value
+  return Math.min(100, Math.round((usedIps / subnetInfo.value.usableHosts) * 100))
 })
 
 const dhcpRangePercent = computed(() => {
@@ -315,6 +375,11 @@ const reservedRangePercent = computed(() => {
     }
   }
   return Math.round((reservedIps / subnetInfo.value.usableHosts) * 100)
+})
+
+const usedPrefixRangePercent = computed(() => {
+  if (!subnetInfo.value.usableHosts || subnetInfo.value.usableHosts <= 0) return 0
+  return Math.min(100, Math.round((usedPrefixIpCount.value / subnetInfo.value.usableHosts) * 100))
 })
 
 const breadcrumbOverrides = useState<Record<string, string>>('breadcrumb-overrides', () => ({}))
@@ -350,7 +415,8 @@ const allocStatusOptions = computed(() => [
 const rangeTypeOptions = computed(() => [
   { label: t('networks.ranges.types.dhcp'), value: 'dhcp' },
   { label: t('networks.ranges.types.static'), value: 'static' },
-  { label: t('networks.ranges.types.reserved'), value: 'reserved' }
+  { label: t('networks.ranges.types.reserved'), value: 'reserved' },
+  { label: t('networks.ranges.types.used_prefix'), value: 'used_prefix' }
 ])
 
 
@@ -412,6 +478,7 @@ type BadgeColor = 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warn
 function rangeTypeBadgeColor(type: string): BadgeColor {
   if (type === 'dhcp') return 'info'
   if (type === 'static') return 'success'
+  if (type === 'used_prefix') return 'secondary'
   return 'warning'
 }
 
@@ -438,6 +505,7 @@ function rowClass(row: UnifiedRow): string {
     if (type === 'dhcp') return 'cursor-pointer border-l-2 border-l-blue-500 bg-blue-500/5 dark:bg-blue-500/5 hover:bg-blue-500/10 dark:hover:bg-blue-500/10'
     if (type === 'static') return 'cursor-pointer border-l-2 border-l-green-500 bg-green-500/5 dark:bg-green-500/5 hover:bg-green-500/10 dark:hover:bg-green-500/10'
     if (type === 'reserved') return 'cursor-pointer border-l-2 border-l-yellow-500 bg-yellow-500/5 dark:bg-yellow-500/5 hover:bg-yellow-500/10 dark:hover:bg-yellow-500/10'
+    if (type === 'used_prefix') return 'cursor-pointer border-l-2 border-l-violet-500 bg-violet-500/5 dark:bg-violet-500/5 hover:bg-violet-500/10 dark:hover:bg-violet-500/10'
   }
   if (isSelected) return 'cursor-pointer bg-primary-500/10 dark:bg-primary-500/10'
   return 'cursor-pointer row-hover'
@@ -652,7 +720,18 @@ async function onSaveRangeEdit() {
 
 async function loadNetwork() {
   pageLoading.value = true
-  try { network.value = await $fetch<Network>(`/api/networks/${networkId}`) }
+  try {
+    network.value = await $fetch<Network>(`/api/networks/${networkId}`)
+    // Load parent if set
+    if (network.value?.parent_network_id) {
+      try { parentNetwork.value = await $fetch<Network>(`/api/networks/${network.value.parent_network_id}`) }
+      catch { parentNetwork.value = null }
+    } else {
+      parentNetwork.value = null
+    }
+    // Load children
+    childNetworks.value = await fetchChildren(networkId)
+  }
   catch { toast.add({ title: t('errors.notFound'), color: 'error' }); await router.push(`/sites/${siteId.value}/subnets`) }
   finally { pageLoading.value = false }
 }

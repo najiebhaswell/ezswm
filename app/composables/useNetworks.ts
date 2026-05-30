@@ -32,8 +32,18 @@ export function useNetworks() {
     await apiFetch(`/api/networks/${id}`, { method: 'DELETE' })
   }
 
-  return { items, total, loading, fetch, create, update, remove }
+  async function fetchChildren(networkId: string): Promise<Network[]> {
+    try {
+      const data = await apiFetch<{ data?: Network[] } & Network[]>(`/api/networks/${networkId}/children`)
+      return data?.data || data || []
+    } catch {
+      return []
+    }
+  }
+
+  return { items, total, loading, fetch, create, update, remove, fetchChildren }
 }
+
 
 export function useIpAllocations(networkId: string) {
   const items = ref<IPAllocation[]>([])

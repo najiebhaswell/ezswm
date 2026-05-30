@@ -1,6 +1,7 @@
 export interface Network {
   id: string
   site_id: string
+  parent_network_id?: string
   name: string
   vlan_id?: string
   subnet: string

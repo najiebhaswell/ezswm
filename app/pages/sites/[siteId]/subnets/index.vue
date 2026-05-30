@@ -31,10 +31,10 @@
       />
     </div>
 
-    <!-- Network List -->
-    <div v-if="sortedItems.length > 0">
-      <div v-for="group in groupedItems" :key="group.siteId" class="mb-4">
-        <div v-if="groupedItems.length > 1" class="mb-2 flex items-center gap-3">
+    <!-- Network Tree -->
+    <div v-if="treeItems.length > 0">
+      <div v-for="group in groupedTree" :key="group.siteId" class="mb-4">
+        <div v-if="groupedTree.length > 1" class="mb-2 flex items-center gap-3">
           <UIcon name="i-heroicons-building-office-2" class="h-4 w-4 text-gray-500" />
           <span class="text-sm font-semibold text-gray-400">{{ group.siteName }}</span>
           <div class="h-px flex-1 bg-default" />
@@ -55,52 +55,18 @@
               <UIcon v-if="sortField === 'gateway'" :name="sortAsc ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'" class="h-3 w-3" />
             </button>
           </div>
-          <!-- Rows -->
-          <NuxtLink
-            v-for="(net, i) in group.items"
-            :key="net.id"
-            :to="`/sites/${siteId}/subnets/${net.id}`"
-            class="row-hover group flex items-stretch pr-5"
-            :class="i > 0 ? 'border-t border-default' : ''"
-          >
-            <!-- VLAN color left accent -->
-            <div
-              class="w-1 flex-shrink-0"
-              :style="getVlan(net.vlan_id) ? { backgroundColor: getVlan(net.vlan_id)?.color } : {}"
-              :class="[
-                !getVlan(net.vlan_id) ? 'bg-transparent' : '',
-                i === 0 ? 'rounded-tl-lg' : '',
-                i === group.items.length - 1 ? 'rounded-bl-lg' : ''
-              ]"
-            />
-
-            <!-- Main info -->
-            <div class="min-w-0 flex-1 py-3 pl-4">
-              <div class="flex items-center gap-2">
-                <span class="text-base font-semibold text-gray-900 dark:text-white">{{ net.name }}</span>
-                <code class="rounded bg-primary-50 px-2 py-0.5 text-sm font-medium text-primary-600 dark:bg-primary-500/10 dark:text-primary-400">{{ net.subnet }}</code>
-              </div>
-              <div class="mt-0.5 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                <span v-if="net.gateway" class="flex items-center gap-1 font-mono">
-                  <UIcon name="i-heroicons-arrow-right-circle" class="h-3 w-3 text-gray-400" />
-                  {{ net.gateway }}
-                </span>
-                <span v-if="getVlan(net.vlan_id)" class="flex items-center gap-1">
-                  <UIcon name="i-heroicons-tag" class="h-3 w-3 text-gray-400" />
-                  VLAN {{ getVlan(net.vlan_id)?.vlan_id }} · {{ getVlan(net.vlan_id)?.name }}
-                </span>
-                <span v-if="net.description" class="flex items-center gap-1 truncate">
-                  <UIcon name="i-heroicons-document-text" class="h-3 w-3 flex-shrink-0 text-gray-400" />
-                  {{ net.description }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Actions (on hover) -->
-            <div class="flex items-center gap-1 py-3 opacity-0 transition-opacity group-hover:opacity-100">
-              <UButton icon="i-heroicons-trash" variant="ghost" color="error" size="xs" @click.prevent="openDeleteDialog(net)" />
-            </div>
-          </NuxtLink>
+          <!-- Tree rows -->
+          <NetworkTreeRow
+            v-for="(node, i) in group.nodes"
+            :key="node.id"
+            :node="node"
+            :depth="0"
+            :is-last="i === group.nodes.length - 1"
+            :site-id="siteId"
+            :get-vlan="getVlan"
+            @delete="openDeleteDialog"
+            @toggle="toggleNode"
+          />
         </div>
       </div>
     </div>
@@ -130,6 +96,11 @@
 <script setup lang="ts">
 import type { Network } from '~~/types/network'
 
+export interface NetworkTreeNode extends Network {
+  children: NetworkTreeNode[]
+  expanded: boolean
+}
+
 const route = useRoute()
 const router = useRouter()
 const siteId = computed(() => route.params.siteId as string)
@@ -151,7 +122,10 @@ const deleteTarget = ref<Network | null>(null)
 const deleteMessage = ref('')
 const deleting = ref(false)
 
-// Initialize from URL query params, fallback to localStorage
+// Collapse state — track explicitly collapsed nodes; everything else is expanded by default
+const collapsedIds = ref<Set<string>>(new Set())
+
+// Saved state
 const LS_KEY = 'ezswm-networks-list'
 const validSortFields = ['name', 'subnet', 'gateway'] as const
 type SortField = typeof validSortFields[number]
@@ -221,19 +195,8 @@ const vlanFilterOptions = computed(() => {
 
 function getVlan(vlanId: string | undefined) {
   if (!vlanId) return null
-  return vlans.value.find((v) => v.id === vlanId)
+  return vlans.value.find((v) => v.id === vlanId) ?? null
 }
-
-const filteredItems = computed(() => {
-  let result = items.value
-  if (vlanFilter.value === 'none') result = result.filter((n) => !n.vlan_id)
-  else if (vlanFilter.value !== 'all') result = result.filter((n) => n.vlan_id === vlanFilter.value)
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    result = result.filter((n) => n.name?.toLowerCase().includes(q) || n.subnet?.toLowerCase().includes(q))
-  }
-  return result
-})
 
 function ipToNum(ip: string): number {
   const parts = ip.split('.').map(Number)
@@ -245,6 +208,19 @@ function subnetToNum(subnet: string): [number, number] {
   return [ipToNum(ip!), parseInt(prefix || '0', 10)]
 }
 
+// Filter by search + VLAN
+const filteredItems = computed(() => {
+  let result = items.value
+  if (vlanFilter.value === 'none') result = result.filter((n) => !n.vlan_id)
+  else if (vlanFilter.value !== 'all') result = result.filter((n) => n.vlan_id === vlanFilter.value)
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter((n) => n.name?.toLowerCase().includes(q) || n.subnet?.toLowerCase().includes(q))
+  }
+  return result
+})
+
+// Sort flat list
 const sortedItems = computed(() => {
   const list = [...filteredItems.value]
   list.sort((a, b) => {
@@ -273,17 +249,46 @@ const sortedItems = computed(() => {
   return list
 })
 
-const groupedItems = computed(() => {
-  if (siteId.value !== 'all') return [{ siteId: '', siteName: '', items: sortedItems.value }]
-  const groups: { siteId: string; siteName: string; items: Network[] }[] = []
-  const groupMap = new Map<string, Network[]>()
-  for (const item of sortedItems.value) {
-    const sid = item.site_id || ''
-    if (!groupMap.has(sid)) groupMap.set(sid, [])
-    groupMap.get(sid)!.push(item)
+// Build tree structure from flat list
+function buildTree(flat: Network[]): NetworkTreeNode[] {
+  const idSet = new Set(flat.map(n => n.id))
+  const roots: NetworkTreeNode[] = []
+  const nodeMap = new Map<string, NetworkTreeNode>()
+
+  // Create node objects — expanded by default, collapsed only if user explicitly closed them
+  for (const n of flat) {
+    nodeMap.set(n.id, { ...n, children: [], expanded: !collapsedIds.value.has(n.id) })
   }
-  for (const [sid, items] of groupMap) {
-    groups.push({ siteId: sid, siteName: siteMap.value[sid] || sid, items })
+
+  // Wire children (only if parent is in current filtered set)
+  for (const node of nodeMap.values()) {
+    if (node.parent_network_id && idSet.has(node.parent_network_id)) {
+      const parent = nodeMap.get(node.parent_network_id)
+      if (parent) {
+        parent.children.push(node)
+        continue
+      }
+    }
+    roots.push(node)
+  }
+
+  return roots
+}
+
+const treeItems = computed(() => buildTree(sortedItems.value))
+
+// Group by site for "All Sites" view
+const groupedTree = computed(() => {
+  if (siteId.value !== 'all') return [{ siteId: '', siteName: '', nodes: treeItems.value }]
+  const groups: { siteId: string; siteName: string; nodes: NetworkTreeNode[] }[] = []
+  const groupMap = new Map<string, NetworkTreeNode[]>()
+  for (const node of treeItems.value) {
+    const sid = node.site_id || ''
+    if (!groupMap.has(sid)) groupMap.set(sid, [])
+    groupMap.get(sid)!.push(node)
+  }
+  for (const [sid, nodes] of groupMap) {
+    groups.push({ siteId: sid, siteName: siteMap.value[sid] || sid, nodes })
   }
   return groups
 })
@@ -292,6 +297,11 @@ function openDeleteDialog(network: Network) {
   deleteTarget.value = network
   deleteMessage.value = `${t('networks.delete')}: ${network.name} (${network.subnet})?`
   showDeleteDialog.value = true
+}
+
+function toggleNode(id: string) {
+  if (collapsedIds.value.has(id)) collapsedIds.value.delete(id)
+  else collapsedIds.value.add(id)
 }
 
 async function confirmDelete() {
@@ -308,7 +318,6 @@ async function confirmDelete() {
   } finally { deleting.value = false }
 }
 
-watch([search, vlanFilter], () => {})
 const siteParams = computed(() => siteId.value && siteId.value !== 'all' ? { site_id: siteId.value } : {})
 onMounted(async () => {
   const fetches: Promise<void>[] = [fetchNetworks(siteParams.value), fetchVlans(siteParams.value)]

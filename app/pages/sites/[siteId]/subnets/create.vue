@@ -1,7 +1,7 @@
 <template>
   <div class="mx-auto w-full max-w-5xl px-6 py-6">
     <div class="mb-6 flex items-center gap-3">
-      <UButton icon="i-heroicons-arrow-left" variant="ghost" :to="`/sites/${siteId}/subnets`" :aria-label="$t('common.back')" />
+      <UButton icon="i-heroicons-arrow-left" variant="ghost" :to="backTo" :aria-label="$t('common.back')" />
       <h1 class="text-2xl font-bold">{{ $t('networks.create') }}</h1>
     </div>
 
@@ -16,6 +16,11 @@
             </UFormField>
             <UFormField :label="$t('networks.fields.subnet')" name="subnet" required>
               <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="w-full" />
+              <template v-if="selectedParent" #hint>
+                <span class="text-xs text-blue-400">
+                  {{ $t('networks.fields.parentNetworkHint') }}: {{ selectedParent.subnet }}
+                </span>
+              </template>
             </UFormField>
             <UFormField :label="$t('networks.fields.gateway')">
               <UInput v-model="form.gateway" placeholder="10.0.1.1" class="w-full" />
@@ -26,6 +31,38 @@
                 <span class="text-xs text-gray-500">{{ $t('networks.validation.commaSeparated') }}</span>
               </template>
             </UFormField>
+          </div>
+        </div>
+
+        <!-- Parent Network -->
+        <div class="list-container rounded-lg bg-default p-5">
+          <h2 class="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">{{ $t('networks.sections.hierarchy') }}</h2>
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UFormField :label="$t('networks.fields.parentNetwork')" class="md:col-span-2">
+              <USelect
+                v-model="form.parent_network_id"
+                :items="parentNetworkOptions"
+                :placeholder="$t('networks.fields.parentNetworkPlaceholder')"
+                value-key="value"
+                class="w-full"
+              />
+              <template v-if="selectedParent" #hint>
+                <span class="inline-flex items-center gap-1 text-xs text-blue-400">
+                  <UIcon name="i-heroicons-information-circle" class="h-3.5 w-3.5" />
+                  {{ $t('networks.fields.parentNetworkHint') }}: {{ selectedParent.subnet }}
+                </span>
+              </template>
+            </UFormField>
+            <!-- Auto-create used_prefix option -->
+            <div v-if="selectedParent" class="md:col-span-2">
+              <label class="flex cursor-pointer items-start gap-3">
+                <input v-model="autoCreateUsedPrefix" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-500 focus:ring-primary-500" />
+                <div>
+                  <span class="text-sm font-medium text-gray-200">{{ $t('networks.autoCreateUsedPrefix') }}</span>
+                  <p class="mt-0.5 text-xs text-gray-400">{{ $t('networks.autoCreateUsedPrefixHint') }}</p>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -46,7 +83,7 @@
 
       <!-- Actions -->
       <div class="mt-4 flex justify-end gap-3">
-        <UButton variant="ghost" color="neutral" :to="`/sites/${siteId}/subnets`">
+        <UButton variant="ghost" color="neutral" :to="backTo">
           {{ $t('common.cancel') }}
         </UButton>
         <UButton type="submit" :loading="submitting" icon="i-heroicons-check">
@@ -68,16 +105,27 @@ const toast = useToast()
 const router = useRouter()
 const { create } = useNetworks()
 const { items: vlans, fetch: fetchVlans } = useVlans()
+const { items: allNetworks, fetch: fetchNetworks } = useNetworks()
 
 const submitting = ref(false)
 const dnsInput = ref('')
+const autoCreateUsedPrefix = ref(false)
+
+// Pre-select parent from query param (e.g. ?parent=<networkId>)
+const preselectedParentId = route.query.parent as string | undefined
 
 const form = ref({
   name: '',
   subnet: '',
   gateway: '',
   vlan_id: '',
-  description: ''
+  description: '',
+  parent_network_id: preselectedParentId || ''
+})
+
+const backTo = computed(() => {
+  if (preselectedParentId) return `/sites/${siteId.value}/subnets/${preselectedParentId}`
+  return `/sites/${siteId.value}/subnets`
 })
 
 const dirtyTracker = computed(() => ({ ...form.value, dnsInput: dnsInput.value }))
@@ -89,6 +137,21 @@ const vlanOptions = computed(() => {
     options.push({ label: `VLAN ${v.vlan_id} - ${v.name}`, value: v.id })
   })
   return options
+})
+
+const parentNetworkOptions = computed(() => {
+  const options: { label: string; value: string }[] = [
+    { label: `— ${t('networks.fields.parentNetworkPlaceholder')} —`, value: '_none' }
+  ]
+  allNetworks.value.forEach((n) => {
+    options.push({ label: `${n.subnet}  ${n.name}`, value: n.id })
+  })
+  return options
+})
+
+const selectedParent = computed((): Network | null => {
+  if (!form.value.parent_network_id || form.value.parent_network_id === '_none') return null
+  return allNetworks.value.find(n => n.id === form.value.parent_network_id) ?? null
 })
 
 function validate(state: typeof form.value) {
@@ -113,18 +176,45 @@ async function onSubmit() {
   submitting.value = true
   let result: unknown
   try {
+    const parentId = form.value.parent_network_id && form.value.parent_network_id !== '_none'
+      ? form.value.parent_network_id
+      : undefined
+
     const body: Record<string, unknown> = {
       name: form.value.name.trim(),
       subnet: form.value.subnet.trim(),
       gateway: form.value.gateway.trim() || undefined,
       dns_servers: parseDns(),
       vlan_id: form.value.vlan_id || undefined,
-      description: form.value.description.trim() || undefined
+      description: form.value.description.trim() || undefined,
+      parent_network_id: parentId ?? null
     }
     if (siteId.value && siteId.value !== 'all') {
       body.site_id = siteId.value
     }
     result = await create(body)
+
+    // Auto-create used_prefix range in parent if requested
+    if (autoCreateUsedPrefix.value && parentId && result) {
+      const newNet = result as Network
+      try {
+        const { apiFetch } = useApiFetch()
+        // Compute network address and broadcast from new subnet
+        await apiFetch(`/api/networks/${parentId}/ranges`, {
+          method: 'POST',
+          body: {
+            start_ip: newNet.subnet.split('/')[0], // network address as start
+            end_ip: computeBroadcast(newNet.subnet),
+            type: 'used_prefix',
+            description: `Delegated to: ${newNet.name} (${newNet.subnet})`
+          }
+        })
+      } catch {
+        // Non-fatal: notify but don't block navigation
+        toast.add({ title: t('networks.autoCreateUsedPrefixFailed'), color: 'warning' })
+      }
+    }
+
     clearDirty()
     toast.add({ title: t('networks.messages.created'), color: 'success' })
   } catch (err: unknown) {
@@ -137,9 +227,27 @@ async function onSubmit() {
   await router.push(`/sites/${siteId.value}/subnets/${(result as Network).id}`)
 }
 
+/** Compute broadcast address from CIDR string. */
+function computeBroadcast(cidr: string): string {
+  const [ip, prefixStr] = cidr.split('/') as [string, string]
+  const prefix = Number(prefixStr)
+  const parts = ip.split('.').map(Number)
+  const ipLong = ((parts[0]! << 24) | (parts[1]! << 16) | (parts[2]! << 8) | parts[3]!) >>> 0
+  const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0
+  const wildcard = (~mask) >>> 0
+  const broadcast = (ipLong | wildcard) >>> 0
+  return [
+    (broadcast >>> 24) & 255,
+    (broadcast >>> 16) & 255,
+    (broadcast >>> 8) & 255,
+    broadcast & 255
+  ].join('.')
+}
+
 const siteParams = computed(() => siteId.value && siteId.value !== 'all' ? { site_id: siteId.value } : {})
 
 onMounted(() => {
   fetchVlans(siteParams.value)
+  fetchNetworks(siteParams.value)
 })
 </script>

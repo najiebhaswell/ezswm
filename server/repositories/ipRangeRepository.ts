@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid'
 import { readJson, writeJson } from '../storage/jsonStorage'
 import type { IPRange } from '../../types/ipRange'
-import { isValidIPv4, isIPInSubnet, ipToLong, doRangesOverlap, subnetRangeError } from '../utils/ipv4'
+import { isValidIPv4, isIPInSubnet, ipToLong, doRangesOverlap, subnetRangeError, parseSubnet } from '../utils/ipv4'
 import { networkRepository } from './networkRepository'
 
 const FILE_NAME = 'ip-ranges.json'
@@ -26,7 +26,7 @@ export const ipRangeRepository = {
       throw createError({ statusCode: 404, message: 'Network not found' })
     }
 
-    // Block DHCP ranges for /31 and /32 networks
+    // Block DHCP ranges for /31 and /32 networks (used_prefix is always allowed)
     const prefix = parseInt(network.subnet.split('/')[1] || '0', 10)
     if (prefix >= 31 && data.type === 'dhcp') {
       const msg = prefix === 32
@@ -55,6 +55,19 @@ export const ipRangeRepository = {
     for (const existing of existingRanges) {
       if (doRangesOverlap(data.start_ip, data.end_ip, existing.start_ip, existing.end_ip)) {
         throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with existing range ${existing.start_ip}-${existing.end_ip} (${existing.type})` })
+      }
+    }
+
+    // Check overlap with child subnets of the parent (if this is a parent network)
+    const childNetworks = networkRepository.listChildren(networkId)
+    const startLong = ipToLong(data.start_ip)
+    const endLong = ipToLong(data.end_ip)
+    for (const child of childNetworks) {
+      const childInfo = parseSubnet(child.subnet)
+      const childStart = ipToLong(childInfo.network_address)
+      const childEnd = ipToLong(childInfo.broadcast_address)
+      if (startLong <= childEnd && childStart <= endLong) {
+        throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
       }
     }
 

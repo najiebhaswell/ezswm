@@ -54,6 +54,15 @@ export const ipAllocationRepository = {
       }
     }
 
+    // Check if IP falls inside a child subnet (child subnets are managed separately)
+    const childNetworks = networkRepository.listChildren(networkId)
+    for (const child of childNetworks) {
+      if (isIPInSubnet(data.ip_address, child.subnet)) {
+        throw createError({ statusCode: 409, message: `IP ${data.ip_address} belongs to child subnet ${child.subnet} (${child.name}). Manage it from the child network instead.` })
+      }
+    }
+
+
     // Global IP uniqueness
     const allAllocations = readJson<IPAllocation[]>(FILE_NAME)
     if (allAllocations.some(a => a.ip_address === data.ip_address)) {

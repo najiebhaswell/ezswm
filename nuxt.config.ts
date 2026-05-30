@@ -53,5 +53,15 @@ export default defineNuxtConfig({
     host: '0.0.0.0'
   },
 
+  // Pre-bundle heavy deps discovered at runtime to avoid slow first-navigation re-bundling
+  vite: {
+    optimizeDeps: {
+      include: [
+        'vuedraggable',   // CJS — used on switches page
+        'v-network-graph' // used on topology page
+      ]
+    }
+  },
+
   compatibilityDate: '2025-03-16'
 })

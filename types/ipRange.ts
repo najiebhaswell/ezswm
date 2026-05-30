@@ -1,4 +1,4 @@
-export type RangeType = 'static' | 'dhcp' | 'reserved'
+export type RangeType = 'static' | 'dhcp' | 'reserved' | 'used_prefix'
 
 export interface IPRange {
   id: string

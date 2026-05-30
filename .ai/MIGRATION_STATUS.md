@@ -51,6 +51,26 @@ Version: 0.18.1
 ### Docs Updated
 README, AGENTS.md, .ai/INSTALLATION.md, .ai/ARCHITECTURE.md, .ai/STRATEGY.md, .ai/specs/SPEC_INFRASTRUCTURE.md, docs/guide/installation.md, docs/de/guide/installation.md
 
+### Current: Phase 32 — Hierarchical Subnet Management
+**Goal:** Implement parent-child subnet relationships and 'Used Prefix' range types (similar to PHPIPAM).
+**Status:** Completed
+
+### Phase 32 Changes
+- **Data Model:**
+  - Extended `Network` with `parent_network_id` and children array handling.
+  - Added `used_prefix` to `RangeType`.
+- **Backend:**
+  - Rewrote `networkRepository` to support hierarchical operations and prevent circular dependencies.
+  - Added CIDR containment logic (`isSubnetContainedIn`) and overlap validation.
+  - Implemented block-delete for parent networks containing children.
+  - Updated `ipRangeRepository` to prevent IP allocations inside ranges handled by child subnets.
+- **Frontend:**
+  - Added recursive `NetworkTreeRow` component and transformed subnet list view into a hierarchical tree.
+  - Added parent network selector and `autoCreateUsedPrefix` option in `create.vue`.
+  - Added child network section and breadcrumb to subnet details page (`[id].vue`).
+
+---
+
 ### Previous: Phase 31 — Component Refactoring: Extract Composables & Sub-Components
 
 ### Phase 31 Changes

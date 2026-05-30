@@ -362,7 +362,8 @@
     "delete": "Subnetz löschen",
     "sections": {
       "networkInfo": "Subnetz-Informationen",
-      "vlanDescription": "VLAN & Beschreibung"
+      "vlanDescription": "VLAN & Beschreibung",
+      "hierarchy": "Hierarchie (Optional)"
     },
     "fields": {
       "name": "Name",
@@ -370,13 +371,27 @@
       "gateway": "Gateway",
       "dnsServers": "DNS-Server",
       "vlan": "VLAN",
-      "utilization": "Auslastung"
+      "utilization": "Auslastung",
+      "parentNetwork": "Übergeordnetes Netz",
+      "parentNetworkPlaceholder": "Keines (Wurzelnetz)",
+      "parentNetworkHint": "Kind-Subnetz muss im Elternnetz enthalten sein"
     },
     "messages": {
       "created": "Subnetz erfolgreich erstellt",
       "updated": "Subnetz erfolgreich aktualisiert",
-      "deleted": "Subnetz erfolgreich gelöscht"
+      "deleted": "Subnetz erfolgreich gelöscht",
+      "hasChildren": "Löschen nicht möglich: Dieses Netz hat {count} Kind-Subnetz(e). Zuerst diese löschen."
     },
+    "children": {
+      "title": "Kind-Subnetze",
+      "empty": "Keine Kind-Subnetze definiert",
+      "add": "Kind-Subnetz hinzufügen",
+      "count": "{count} Subnetz | {count} Subnetze"
+    },
+    "autoCreateUsedPrefix": "Bereich als 'Genutztes Präfix' im Elternnetz markieren",
+    "autoCreateUsedPrefixHint": "Erstellt automatisch einen Eintrag vom Typ 'Genutztes Präfix' im Elternnetz für den gesamten CIDR-Bereich dieses Subnetzes.",
+    "autoCreateUsedPrefixFailed": "Subnetz erstellt, aber 'Genutztes Präfix' konnte nicht automatisch im Elternnetz angelegt werden.",
+    "parentLink": "Übergeordnet",
     "emptyTitle": "Noch keine Subnetze konfiguriert",
     "emptyDescription": "Erstellen Sie Ihr erstes Subnetz.",
     "allocations": {
@@ -425,7 +440,8 @@
       "types": {
         "dhcp": "DHCP",
         "static": "Statisch",
-        "reserved": "Reserviert"
+        "reserved": "Reserviert",
+        "used_prefix": "Genutztes Präfix"
       },
       "ipsDocumented": "{count} IPs dokumentiert",
       "ipCount": "{count} IPs",
@@ -455,7 +471,9 @@
       "commaSeparated": "Kommagetrennt",
       "vlanIdRange": "VLAN-ID muss zwischen 1 und 4094 liegen",
       "colorFormat": "Gültiger Hex-Farbwert erforderlich (z. B. #FF5733)",
-      "managementIpFormat": "Muss eine gültige IPv4-Adresse sein (z. B. 192.168.1.1)"
+      "managementIpFormat": "Muss eine gültige IPv4-Adresse sein (z. B. 192.168.1.1)",
+      "childNotInParent": "Subnetz {child} ist nicht im Elternnetz {parent} enthalten",
+      "childOverlapsSibling": "Subnetz überschneidet sich mit einem vorhandenen Geschwister-Subnetz"
     },
     "subnetInfo": {
       "networkAddress": "Netzwerkadresse",

@@ -163,7 +163,8 @@
                 <span class="w-9 shrink-0 text-right font-mono text-xs" :class="net.percentage > 80 ? 'text-red-400' : net.percentage > 50 ? 'text-yellow-400' : 'text-gray-400'">{{ net.percentage }}%</span>
               </div>
               <div class="mt-0.5 flex h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-700">
-                <div class="h-full transition-all" :class="net.percentage > 80 ? 'bg-red-500' : 'bg-primary-500'" :style="{ width: `${Math.min(net.percentage, 100)}%` }" />
+                <div class="h-full transition-all" :class="net.percentage > 80 ? 'bg-red-500' : 'bg-primary-500'" :style="{ width: `${Math.min(net.percentage - (net.used_prefix_percent ?? 0), 100)}%` }" />
+                <div v-if="(net.used_prefix_percent ?? 0) > 0" class="h-full bg-violet-500/70 transition-all" :style="{ width: `${Math.min(net.used_prefix_percent ?? 0, 100 - net.percentage + (net.used_prefix_percent ?? 0))}%` }" />
                 <div v-if="net.dhcp_percent > 0" class="h-full bg-blue-500/60 transition-all" :style="{ width: `${Math.min(net.dhcp_percent, 100 - net.percentage)}%` }" />
                 <div v-if="net.reserved_percent > 0" class="h-full bg-yellow-500/50 transition-all" :style="{ width: `${Math.min(net.reserved_percent, 100 - net.percentage - net.dhcp_percent)}%` }" />
               </div>
@@ -182,10 +183,11 @@
             <NuxtLink :to="`/sites/${siteId}/subnets/create`" class="hover:text-primary-400">Add more subnets to track utilization</NuxtLink>
           </div>
           <template #footer>
-            <div v-if="stats.networkUtilization.some((n: any) => n.dhcp_percent > 0 || n.reserved_percent > 0)" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400">
+            <div v-if="stats.networkUtilization.some((n: any) => n.dhcp_percent > 0 || n.reserved_percent > 0 || n.used_prefix_percent > 0)" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400">
               <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-primary-500" /> Allocated</span>
-              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-blue-500/60" /> DHCP</span>
-              <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-yellow-500/50" /> Reserved</span>
+              <span v-if="stats.networkUtilization.some((n: any) => (n.used_prefix_percent ?? 0) > 0)" class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-violet-500/70" /> Used Prefix</span>
+              <span v-if="stats.networkUtilization.some((n: any) => n.dhcp_percent > 0)" class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-blue-500/60" /> DHCP</span>
+              <span v-if="stats.networkUtilization.some((n: any) => n.reserved_percent > 0)" class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-yellow-500/50" /> Reserved</span>
               <span class="flex items-center gap-1"><span class="inline-block h-2 w-2 rounded-full bg-gray-500/30" /> Free</span>
             </div>
           </template>
@@ -249,7 +251,7 @@ const { t } = useI18n()
 interface DashboardStats {
   counts: { switches: number; vlans: number; networks: number; allocations: number }
   portStatus: { up: number; down: number; disabled: number }
-  networkUtilization: { id: string; name: string; subnet: string; total_hosts: number; allocated: number; ranges: number; percentage: number; dhcp_percent: number; reserved_percent: number; vlan_color: string | null; vlan_name: string | null; vlan_id: number | null }[]
+  networkUtilization: { id: string; name: string; subnet: string; total_hosts: number; allocated: number; ranges: number; percentage: number; dhcp_percent: number; reserved_percent: number; used_prefix_percent: number; vlan_color: string | null; vlan_name: string | null; vlan_id: number | null }[]
   orphanVlans: { id: string; vlan_id: number; name: string }[]
   highUsageNetworks: { id: string; name: string; subnet: string; percentage: number }[]
   duplicateIps: string[]

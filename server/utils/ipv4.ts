@@ -127,3 +127,43 @@ export function doRangesOverlap(
 export function isValidMacAddress(mac: string): boolean {
   return /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(mac)
 }
+
+/**
+ * Check if cidrChild is fully contained within cidrParent.
+ * e.g. isSubnetContainedIn('10.0.1.0/24', '10.0.0.0/16') → true
+ */
+export function isSubnetContainedIn(cidrChild: string, cidrParent: string): boolean {
+  const [childIp, childPrefixStr] = cidrChild.split('/') as [string, string]
+  const [parentIp, parentPrefixStr] = cidrParent.split('/') as [string, string]
+  const childPrefix = Number(childPrefixStr)
+  const parentPrefix = Number(parentPrefixStr)
+
+  // Child must have a longer (more specific) prefix than the parent
+  if (childPrefix <= parentPrefix) return false
+
+  const parentMask = parentPrefix === 0 ? 0 : (~0 << (32 - parentPrefix)) >>> 0
+  const parentNetwork = (ipToLong(parentIp) & parentMask) >>> 0
+  const childNetwork = (ipToLong(childIp) & parentMask) >>> 0
+
+  return childNetwork === parentNetwork
+}
+
+/**
+ * Check if two CIDR blocks overlap (one contains the other, or they partially overlap).
+ */
+export function doCidrsOverlap(cidr1: string, cidr2: string): boolean {
+  const [ip1, p1str] = cidr1.split('/') as [string, string]
+  const [ip2, p2str] = cidr2.split('/') as [string, string]
+  const p1 = Number(p1str)
+  const p2 = Number(p2str)
+
+  const mask1 = p1 === 0 ? 0 : (~0 << (32 - p1)) >>> 0
+  const mask2 = p2 === 0 ? 0 : (~0 << (32 - p2)) >>> 0
+
+  const net1 = (ipToLong(ip1) & mask1) >>> 0
+  const net2 = (ipToLong(ip2) & mask2) >>> 0
+
+  // Check if net1 start falls inside net2, or net2 start falls inside net1
+  return (net1 & mask2) >>> 0 === net2 || (net2 & mask1) >>> 0 === net1
+}
+

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const createNetworkSchema = z.object({
   site_id: z.string().min(1),
+  parent_network_id: z.string().optional().nullable(),
   name: z.string().min(1).max(100),
   vlan_id: z.string().optional(),
   subnet: z.string().min(1),
@@ -12,6 +13,7 @@ export const createNetworkSchema = z.object({
 
 export const updateNetworkSchema = z.object({
   site_id: z.string().min(1).optional(),
+  parent_network_id: z.string().optional().nullable(),
   name: z.string().min(1).max(100).optional(),
   vlan_id: z.string().optional().nullable(),
   subnet: z.string().optional(),
@@ -20,3 +22,4 @@ export const updateNetworkSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   is_favorite: z.boolean().optional()
 })
+
