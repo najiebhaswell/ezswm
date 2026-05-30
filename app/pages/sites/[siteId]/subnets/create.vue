@@ -19,11 +19,11 @@
                 <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="flex-1" />
                 <UPopover v-if="selectedParent">
                   <UButton color="primary" variant="soft" icon="i-heroicons-sparkles" :title="$t('networks.suggestSubnet')" />
-                  <template #panel="{ close }">
+                  <template #content>
                     <div class="flex items-center gap-2 p-3">
                       <span class="text-sm">Prefix: /</span>
                       <UInput v-model="suggestPrefix" type="number" min="1" max="32" class="w-20" size="sm" />
-                      <UButton size="sm" :loading="suggestingSubnet" @click="doSuggestSubnet(close)">{{ $t('common.suggest') }}</UButton>
+                      <UButton size="sm" :loading="suggestingSubnet" @click="doSuggestSubnet">{{ $t('common.suggest') }}</UButton>
                     </div>
                   </template>
                 </UPopover>
@@ -181,7 +181,7 @@ const selectedParent = computed((): Network | null => {
   return allNetworks.value.find(n => n.id === form.value.parent_network_id) ?? null
 })
 
-async function doSuggestSubnet(closePopover: () => void) {
+async function doSuggestSubnet() {
   if (!selectedParent.value) return
   suggestingSubnet.value = true
   try {
@@ -189,7 +189,6 @@ async function doSuggestSubnet(closePopover: () => void) {
       query: { prefix: suggestPrefix.value }
     })
     form.value.subnet = subnet
-    closePopover()
   } catch (err: any) {
     toast.add({
       title: t('networks.suggestFailed'),
