@@ -199,12 +199,12 @@ async function onSubmit() {
       const newNet = result as Network
       try {
         const { apiFetch } = useApiFetch()
-        // Compute network address and broadcast from new subnet
+        // Use network address → broadcast to mark the full delegated block in parent
         await apiFetch(`/api/networks/${parentId}/ranges`, {
           method: 'POST',
           body: {
-            start_ip: newNet.subnet.split('/')[0], // network address as start
-            end_ip: computeBroadcast(newNet.subnet),
+            start_ip: newNet.subnet.split('/')[0], // network address (start of block)
+            end_ip: computeBroadcast(newNet.subnet),   // broadcast (end of block)
             type: 'used_prefix',
             description: `Delegated to: ${newNet.name} (${newNet.subnet})`
           }

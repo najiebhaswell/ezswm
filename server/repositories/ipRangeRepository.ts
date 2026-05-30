@@ -58,16 +58,19 @@ export const ipRangeRepository = {
       }
     }
 
-    // Check overlap with child subnets of the parent (if this is a parent network)
-    const childNetworks = networkRepository.listChildren(networkId)
-    const startLong = ipToLong(data.start_ip)
-    const endLong = ipToLong(data.end_ip)
-    for (const child of childNetworks) {
-      const childInfo = parseSubnet(child.subnet)
-      const childStart = ipToLong(childInfo.network_address)
-      const childEnd = ipToLong(childInfo.broadcast_address)
-      if (startLong <= childEnd && childStart <= endLong) {
-        throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
+    // Check overlap with child subnets of the parent (if this is a parent network).
+    // used_prefix ranges are explicitly allowed to overlap with children — that is their purpose.
+    if (data.type !== 'used_prefix') {
+      const childNetworks = networkRepository.listChildren(networkId)
+      const startLong = ipToLong(data.start_ip)
+      const endLong = ipToLong(data.end_ip)
+      for (const child of childNetworks) {
+        const childInfo = parseSubnet(child.subnet)
+        const childStart = ipToLong(childInfo.network_address)
+        const childEnd = ipToLong(childInfo.broadcast_address)
+        if (startLong <= childEnd && childStart <= endLong) {
+          throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
+        }
       }
     }
 
