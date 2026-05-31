@@ -168,6 +168,7 @@
             :switch-name="item.name"
             :configured-vlans="item.configured_vlans || []"
             :all-vlans="vlans"
+            :ports="item.ports || []"
             :updated-at="item.updated_at"
             @updated="fetchSwitch"
           />

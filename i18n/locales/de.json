@@ -152,7 +152,6 @@
     "info": "Info",
     "comingSoon": "Demnächst",
     "inDevelopment": "In Entwicklung",
-    "showLess": "Weniger anzeigen",
     "none": "Keine",
     "selectAll": "Alle auswählen",
     "deselectAll": "Alle abwählen",
@@ -258,7 +257,9 @@
       "deviceHintNoVlan": "Weise zuerst ein VLAN zu, um verfügbare Geräte zu sehen",
       "deviceHintNoNetwork": "Kein Subnetz für dieses VLAN konfiguriert",
       "deviceHintNoDevices": "Keine Geräte in diesem Subnetz registriert",
-      "selectDevice": "Gerät auswählen..."
+      "selectDevice": "Gerät auswählen...",
+      "tagged": "Tagged",
+      "untagged": "Untagged"
     },
     "roles": {
       "core": "Core",
@@ -306,7 +307,8 @@
     "activity": {
       "entriesCount": "{n} Eintrag | {n} Einträge",
       "latest": "Letzte: {time}"
-    }
+    },
+    "associatedDevices": "Zugeordnete Geräte"
   },
   "vlans": {
     "title": "VLANs",
@@ -353,7 +355,8 @@
     "noNetwork": "Kein Subnetz",
     "sortId": "ID",
     "sortName": "Name",
-    "sortStatus": "Status"
+    "sortStatus": "Status",
+    "noSwitches": "Dieses VLAN ist derzeit keinem Switch zugewiesen."
   },
   "networks": {
     "title": "Subnetze",

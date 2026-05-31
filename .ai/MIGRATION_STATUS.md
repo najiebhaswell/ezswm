@@ -3,11 +3,28 @@
 ## Latest Stage
 
 Date: 2026-05-31
-Stage: Phase 36 — Switch Management IP Auto-Reservation
+Stage: Phase 37 — VLAN Visibility & Association Enhancements
 Status: Complete
-Version: 0.24.0
+Version: 0.25.0
 
-### Phase 36 — Switch Management IP Auto-Reservation
+### Phase 37 — VLAN Visibility & Association Enhancements
+
+Improved UI to surface relational data between VLANs and Switch Ports, making troubleshooting and capacity planning easier.
+
+#### Frontend Changes
+- **`app/components/switch/SwitchConfiguredVlans.vue`** — Added calculation to categorize switch ports as either "Tagged" or "Untagged" for each configured VLAN. Visually represented using small badges directly beneath each VLAN entry.
+- **`app/pages/sites/[siteId]/switches/[id].vue`** — Passed down `item.ports` to `<SwitchConfiguredVlans>` for localized distribution calculation.
+- **`app/pages/sites/[siteId]/vlans/[id].vue`** — Added an "Associated Devices" card utilizing `useSwitches()` to fetch and filter all switches assigned to the specific VLAN. Provides a quick summary and direct deep-links to associated switches.
+
+#### Design Notes
+- Port sorting is "natural" (e.g. `Gi1/1`, `Gi1/2` instead of lexical `Gi1/10` before `Gi1/2`).
+- Relies heavily on cached Composables (`useSwitches()`) to minimize API requests during frontend navigation.
+
+---
+
+### Previous Stage
+
+Date: 2026-05-31
 
 Implemented cross-domain synchronization to ensure that a Switch's `management_ip` is automatically reserved in the IPAM module. 
 

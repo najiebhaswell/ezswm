@@ -146,6 +146,26 @@
         </div>
         <p v-else class="text-sm text-gray-400">{{ $t('vlans.noNetwork') }}</p>
       </UCard>
+
+      <!-- Associated Devices (Switches) -->
+      <UCard>
+        <template #header>
+          <h2 class="text-lg font-semibold">{{ $t('switches.associatedDevices') }}</h2>
+        </template>
+
+        <div v-if="associatedSwitches.length > 0" class="space-y-1">
+          <NuxtLink
+            v-for="sw in associatedSwitches"
+            :key="sw.id"
+            :to="`/sites/${siteId}/switches/${sw.id}`"
+            class="flex items-center justify-between rounded-md px-3 py-2 transition-colors hover:bg-elevated"
+          >
+            <span class="text-sm font-medium text-primary-500">{{ sw.name }}</span>
+            <span class="text-xs text-gray-400">{{ sw.location || sw.model || '-' }}</span>
+          </NuxtLink>
+        </div>
+        <p v-else class="text-sm text-gray-400">{{ $t('vlans.noSwitches') }}</p>
+      </UCard>
     </div>
 
     <!-- Delete confirmation -->
@@ -168,6 +188,7 @@ const siteId = computed(() => route.params.siteId as string)
 const router = useRouter()
 const { update, remove } = useVlans()
 const { items: allNetworks, fetch: fetchNetworks } = useNetworks()
+const { items: allSwitches, fetch: fetchSwitches } = useSwitches()
 
 const id = route.params.id as string
 const loading = ref(true)
@@ -199,6 +220,11 @@ const statusOptions = computed(() => [
 const associatedNetworks = computed(() => {
   if (!vlan.value) return []
   return allNetworks.value.filter((n) => n.vlan_id === vlan.value!.id)
+})
+
+const associatedSwitches = computed(() => {
+  if (!vlan.value) return []
+  return allSwitches.value.filter((s) => s.configured_vlans?.includes(vlan.value!.vlan_id))
 })
 
 function startEdit() {
@@ -281,6 +307,6 @@ async function loadVlan() {
 const siteParams = computed(() => siteId.value && siteId.value !== 'all' ? { site_id: siteId.value } : {})
 
 onMounted(async () => {
-  await Promise.all([loadVlan(), fetchNetworks(siteParams.value)])
+  await Promise.all([loadVlan(), fetchNetworks(siteParams.value), fetchSwitches(siteParams.value)])
 })
 </script>

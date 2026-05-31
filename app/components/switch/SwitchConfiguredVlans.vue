@@ -19,17 +19,35 @@
       <div
         v-for="vlan in configuredVlanDetails"
         :key="vlan.vlan_id"
-        class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-elevated"
+        class="flex flex-col gap-1 rounded-md px-2 py-1.5 hover:bg-elevated"
       >
-        <span class="size-3 shrink-0 rounded-full" :style="{ backgroundColor: vlan.color || '#888' }" />
-        <span class="flex-1 text-sm">{{ vlan.vlan_id }} · {{ vlan.name || 'Unknown VLAN' }}</span>
-        <UButton
-          size="xs"
-          variant="ghost"
-          color="error"
-          icon="i-heroicons-x-mark"
-          @click="removeVlan(vlan.vlan_id)"
-        />
+        <div class="flex items-center gap-2">
+          <span class="size-3 shrink-0 rounded-full" :style="{ backgroundColor: vlan.color || '#888' }" />
+          <span class="flex-1 text-sm">{{ vlan.vlan_id }} · {{ vlan.name || 'Unknown VLAN' }}</span>
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="error"
+            icon="i-heroicons-x-mark"
+            @click="removeVlan(vlan.vlan_id)"
+          />
+        </div>
+        
+        <!-- Port Distribution -->
+        <div v-if="vlan.untaggedPorts.length || vlan.taggedPorts.length" class="pl-6 pr-2 pt-2 pb-2 text-sm space-y-2">
+          <div v-if="vlan.untaggedPorts.length" class="flex flex-wrap items-center gap-1.5">
+            <span class="text-gray-400 mr-1 text-xs">{{ $t('switches.ports.untagged') }}:</span>
+            <UBadge v-for="p in vlan.untaggedPorts" :key="p.id" size="sm" variant="soft" color="neutral">
+              {{ p.label || `${p.unit}/${p.index}` }}
+            </UBadge>
+          </div>
+          <div v-if="vlan.taggedPorts.length" class="flex flex-wrap items-center gap-1.5">
+            <span class="text-gray-400 mr-1 text-xs">{{ $t('switches.ports.tagged') }}:</span>
+            <UBadge v-for="p in vlan.taggedPorts" :key="p.id" size="sm" variant="soft" color="neutral">
+              {{ p.label || `${p.unit}/${p.index}` }}
+            </UBadge>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -69,6 +87,8 @@
 </template>
 
 <script setup lang="ts">
+import type { Port } from '~~/types/port'
+
 const { t } = useI18n()
 const toast = useToast()
 
@@ -78,6 +98,7 @@ const props = defineProps<{
   configuredVlans: number[]
   allVlans: Array<{ vlan_id: number; name: string; color: string }>
   updatedAt: string
+  ports?: Port[]
 }>()
 
 const emit = defineEmits<{
@@ -89,10 +110,30 @@ const showAddDialog = ref(false)
 const configuredVlanDetails = computed(() => {
   return props.configuredVlans.map(vid => {
     const vlan = props.allVlans.find(v => v.vlan_id === vid)
+    
+    // Calculate port distribution
+    const untaggedPorts = props.ports?.filter(p => 
+      (p.port_mode === 'access' && p.access_vlan === vid) || 
+      (p.port_mode === 'trunk' && p.native_vlan === vid)
+    ) || []
+    
+    const taggedPorts = props.ports?.filter(p => 
+      p.port_mode === 'trunk' && p.tagged_vlans?.includes(vid)
+    ) || []
+
+    // Sort ports naturally (e.g. Gi1/1, Gi1/2)
+    const sortByLabel = (a: Port, b: Port) => {
+      const la = a.label || `${a.unit}/${a.index}`
+      const lb = b.label || `${b.unit}/${b.index}`
+      return la.localeCompare(lb, undefined, { numeric: true })
+    }
+
     return {
       vlan_id: vid,
       name: vlan?.name || '',
-      color: vlan?.color || '#888'
+      color: vlan?.color || '#888',
+      untaggedPorts: untaggedPorts.sort(sortByLabel),
+      taggedPorts: taggedPorts.sort(sortByLabel)
     }
   })
 })

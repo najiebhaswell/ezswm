@@ -152,7 +152,6 @@
     "info": "Info",
     "comingSoon": "Coming Soon",
     "inDevelopment": "In Development",
-    "showLess": "Show less",
     "none": "None",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
@@ -258,7 +257,9 @@
       "deviceHintNoVlan": "Assign a VLAN first to see available devices",
       "deviceHintNoNetwork": "No subnet configured for this VLAN",
       "deviceHintNoDevices": "No devices registered in this subnet",
-      "selectDevice": "Select device..."
+      "selectDevice": "Select device...",
+      "tagged": "Tagged",
+      "untagged": "Untagged"
     },
     "roles": {
       "core": "Core",
@@ -306,7 +307,8 @@
     "activity": {
       "entriesCount": "{n} entry | {n} entries",
       "latest": "Latest: {time}"
-    }
+    },
+    "associatedDevices": "Associated Devices"
   },
   "vlans": {
     "title": "VLANs",
@@ -353,7 +355,8 @@
     "noNetwork": "No subnet",
     "sortId": "ID",
     "sortName": "Name",
-    "sortStatus": "Status"
+    "sortStatus": "Status",
+    "noSwitches": "No switches are currently configured with this VLAN."
   },
   "networks": {
     "title": "Subnets",

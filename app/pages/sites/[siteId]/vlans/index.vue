@@ -186,6 +186,25 @@
             </div>
             <p v-else class="mt-2 text-sm text-gray-500">{{ $t('vlans.noNetwork') }}</p>
           </div>
+
+          <USeparator />
+
+          <!-- Associated Devices -->
+          <div>
+            <span class="text-sm font-medium text-gray-400">{{ $t('switches.associatedDevices') }}</span>
+            <div v-if="panelSwitches.length" class="mt-2 space-y-1">
+              <NuxtLink
+                v-for="sw in panelSwitches"
+                :key="sw.id"
+                :to="`/sites/${siteId}/switches/${sw.id}`"
+                class="flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-elevated"
+              >
+                <span class="font-medium text-primary-500">{{ sw.name }}</span>
+                <span class="text-xs text-gray-500">{{ sw.location || sw.model || '-' }}</span>
+              </NuxtLink>
+            </div>
+            <p v-else class="mt-2 text-sm text-gray-500">{{ $t('vlans.noSwitches') }}</p>
+          </div>
         </div>
 
         <!-- Edit form -->
@@ -248,6 +267,7 @@ const toast = useToast()
 const { items, loading, fetch: fetchVlans, update, remove } = useVlans()
 const { items: allNetworks, fetch: fetchNetworks } = useNetworks()
 const { items: allSites, fetch: fetchAllSites } = useSites()
+const { items: allSwitches, fetch: fetchSwitches } = useSwitches()
 const siteMap = computed(() => {
   const map: Record<string, string> = {}
   for (const s of allSites.value) map[s.id] = s.name
@@ -359,6 +379,11 @@ const panelNetworks = computed(() => {
   return allNetworks.value.filter((n) => n.vlan_id === selectedVlan.value!.id)
 })
 
+const panelSwitches = computed(() => {
+  if (!selectedVlan.value) return []
+  return allSwitches.value.filter((s) => s.configured_vlans?.includes(selectedVlan.value!.vlan_id))
+})
+
 function openPanel(vlan: VLAN, edit: boolean) {
   selectedVlan.value = vlan
   panelEditing.value = edit
@@ -446,7 +471,7 @@ watch(showPanel, (open) => { if (!open) panelEditing.value = false })
 const siteParams = computed(() => siteId.value && siteId.value !== 'all' ? { site_id: siteId.value } : {})
 
 onMounted(async () => {
-  const fetches: Promise<void>[] = [fetchVlans(siteParams.value), fetchNetworks(siteParams.value)]
+  const fetches: Promise<void>[] = [fetchVlans(siteParams.value), fetchNetworks(siteParams.value), fetchSwitches(siteParams.value)]
   if (siteId.value === 'all') fetches.push(fetchAllSites())
   await Promise.all(fetches)
   pageLoading.value = false
