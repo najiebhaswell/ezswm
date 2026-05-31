@@ -3,6 +3,29 @@
 ## Latest Stage
 
 Date: 2026-05-31
+Stage: Phase 36 — Switch Management IP Auto-Reservation
+Status: Complete
+Version: 0.24.0
+
+### Phase 36 — Switch Management IP Auto-Reservation
+
+Implemented cross-domain synchronization to ensure that a Switch's `management_ip` is automatically reserved in the IPAM module. 
+
+#### Backend Changes
+- **`server/utils/ipSync.ts`** (New) — Centralized utility containing `findNetworkForIp` and `syncSwitchManagementIp` logic.
+- **`server/api/switches/index.post.ts`** — Added auto-reservation hook for switch creation.
+- **`server/api/switches/[id].put.ts`** — Added auto-reservation hook for switch updates. Safely handles IP changes and Switch renames.
+- **`server/api/switches/[id].delete.ts`** — Added auto-release hook for switch deletions.
+
+#### Design Notes
+- Missing subnets are handled gracefully: if a switch's IP falls outside of any managed subnet, it saves without an error (the IP remains unmanaged).
+- Allocation Conflicts: If a Switch claims an IP already recorded in the IPAM, the Switch acts as the source of truth, forcefully updating the `device_type` to `switch` and the `hostname` to the Switch's name.
+
+---
+
+### Previous Stage
+
+Date: 2026-05-31
 Stage: Phase 35 — IPv6 Utilization & UI Fixes
 Status: Complete
 Version: 0.23.0

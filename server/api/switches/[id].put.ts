@@ -1,6 +1,7 @@
 import { switchRepository } from '../../repositories/switchRepository'
 import { updateSwitchSchema } from '../../validators/switchSchemas'
 import { activityRepository } from '../../repositories/activityRepository'
+import { syncSwitchManagementIp } from '../../utils/ipSync'
 import type { Switch } from '../../../types/switch'
 
 export default defineEventHandler(async (event) => {
@@ -20,6 +21,9 @@ export default defineEventHandler(async (event) => {
   const parsed = updateSwitchSchema.parse(body)
 
   const updated = await switchRepository.update(id, parsed as Partial<Omit<Switch, 'id' | 'ports' | 'created_at'>>)
+
+  // Auto-reserve management IP if applicable
+  syncSwitchManagementIp(updated.management_ip, existing.management_ip, updated.name, existing.name)
 
   await activityRepository.log({
     user_id: event.context.auth?.userId,

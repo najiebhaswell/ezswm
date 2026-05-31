@@ -2,6 +2,7 @@ import { switchRepository } from '../../repositories/switchRepository'
 import { activityRepository } from '../../repositories/activityRepository'
 import { lagGroupRepository } from '../../repositories/lagGroupRepository'
 import { publicTokenRepository } from '../../repositories/publicTokenRepository'
+import { syncSwitchManagementIp } from '../../utils/ipSync'
 
 export default defineEventHandler(async (event) => {
   const id = event.context.params?.id
@@ -21,6 +22,9 @@ export default defineEventHandler(async (event) => {
   publicTokenRepository.deleteBySwitchId(id)
 
   await switchRepository.delete(id)
+
+  // Release management IP reservation if it exists
+  syncSwitchManagementIp(undefined, existing.management_ip, undefined, existing.name)
 
   await activityRepository.log({
     user_id: event.context.auth?.userId,
