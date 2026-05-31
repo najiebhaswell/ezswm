@@ -388,12 +388,13 @@
       "add": "Add Child Subnet",
       "count": "{count} subnet | {count} subnets"
     },
-    "autoCreateUsedPrefix": "Mark range as 'Used Prefix' in parent",
-    "autoCreateUsedPrefixHint": "Automatically creates a Used Prefix range entry in the parent network covering the full CIDR of this subnet.",
-    "autoCreateUsedPrefixFailed": "Subnet created, but failed to auto-create Used Prefix range in parent.",
     "autoCreateUsedPrefixInSelf": "Mark this subnet as fully utilized",
     "autoCreateUsedPrefixInSelfHint": "Automatically creates a Used Prefix range covering the entire IP space of this subnet, setting its utilization to 100%.",
     "autoCreateUsedPrefixInSelfFailed": "Subnet created, but failed to mark as fully utilized.",
+    "markAsFullyUtilized": "Mark as fully utilized",
+    "markAsFullyUtilizedHint": "Creates a Used Prefix range covering the entire subnet, setting utilization to 100%.",
+    "markAsFullyUtilizedSuccess": "Subnet marked as fully utilized.",
+    "markAsFullyUtilizedFailed": "Failed to mark subnet as fully utilized.",
     "suggestSubnet": "Suggest next available child subnet",
     "suggestIp": "Suggest next available IP address",
     "suggestFailed": "Failed to suggest",
@@ -465,6 +466,7 @@
       "networkAddress": "Network",
       "gateway": "Gateway",
       "broadcast": "Broadcast",
+      "lastAddress": "Last Address",
       "endpointA": "Endpoint A",
       "endpointB": "Endpoint B",
       "hostAddress": "Host Address"
@@ -472,24 +474,27 @@
     "validation": {
       "nameRequired": "Name is required",
       "subnetRequired": "Subnet is required",
-      "subnetFormat": "Must be valid CIDR notation (e.g. 10.0.0.0/24)",
-      "gatewayFormat": "Must be a valid IPv4 address (e.g. 10.0.0.1)",
+      "subnetFormat": "Must be valid CIDR notation (e.g. 10.0.0.0/24 or 2001:db8::/48)",
+      "gatewayFormat": "Must be a valid IP address (IPv4 or IPv6)",
       "commaSeparated": "Comma-separated",
       "vlanIdRange": "VLAN ID must be between 1 and 4094",
       "colorFormat": "Valid hex color required (e.g. #FF5733)",
-      "managementIpFormat": "Must be a valid IPv4 address (e.g. 192.168.1.1)",
+      "managementIpFormat": "Must be a valid IP address (IPv4 or IPv6)",
       "childNotInParent": "Subnet {child} is not contained within parent {parent}",
-      "childOverlapsSibling": "Subnet overlaps with an existing sibling subnet"
+      "childOverlapsSibling": "Subnet overlaps with an existing sibling subnet",
+      "mixedFamily": "IP address family must match the subnet (IPv4 vs IPv6)"
     },
     "subnetInfo": {
       "networkAddress": "Network Address",
       "broadcastAddress": "Broadcast Address",
+      "lastAddress": "Last Address",
       "subnetMask": "Subnet Mask",
       "wildcardMask": "Wildcard Mask",
       "firstUsable": "First Usable",
       "lastUsable": "Last Usable",
       "totalHosts": "Total Hosts",
       "usableHosts": "Usable Hosts",
+      "prefixLength": "Prefix Length",
       "endpointA": "Endpoint A",
       "endpointB": "Endpoint B",
       "hostAddress": "Host Address"
@@ -498,6 +503,7 @@
       "subnet": "Subnet",
       "gateway": "Gateway",
       "mask": "Mask",
+      "prefix": "Prefix",
       "hosts": "Hosts",
       "allocated": "Allocated",
       "vlan": "VLAN",
@@ -633,8 +639,10 @@
     "subnetCalculator": {
       "title": "Subnet Calculator",
       "inputLabel": "CIDR Notation",
-      "inputPlaceholder": "e.g. 10.0.1.0/24",
-      "results": "Results"
+      "inputPlaceholder": "e.g. 10.0.1.0/24 or 2001:db8::/48",
+      "results": "Results",
+      "lastAddress": "Last Address",
+      "totalAddresses": "Total Addresses"
     }
   },
   "settings": {

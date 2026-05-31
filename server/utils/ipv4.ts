@@ -129,6 +129,23 @@ export function isValidMacAddress(mac: string): boolean {
 }
 
 /**
+ * Type guard: returns true if the string looks like an IPv4 address.
+ * Quick heuristic based on the presence of dots and absence of colons.
+ */
+export function isIPv4(ip: string): boolean {
+  return ip.includes('.') && !ip.includes(':')
+}
+
+/**
+ * Type guard: returns true if the string looks like an IPv4 CIDR block.
+ */
+export function isCIDRv4(cidr: string): boolean {
+  const slash = cidr.indexOf('/')
+  if (slash === -1) return false
+  return isIPv4(cidr.slice(0, slash))
+}
+
+/**
  * Check if cidrChild is fully contained within cidrParent.
  * e.g. isSubnetContainedIn('10.0.1.0/24', '10.0.0.0/16') → true
  */

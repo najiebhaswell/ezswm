@@ -1,9 +1,51 @@
 import { nanoid } from 'nanoid'
 import { readJson, writeJson } from '../storage/jsonStorage'
 import type { Network } from '../../types/network'
-import { isValidCIDR, isValidIPv4, isIPInSubnet, isSubnetContainedIn, doCidrsOverlap } from '../utils/ipv4'
+import { isValidCIDR, isValidIPv4, isIPInSubnet, isSubnetContainedIn, doCidrsOverlap, isCIDRv4, isIPv4 } from '../utils/ipv4'
+import {
+  isValidIPv6CIDR, isValidIPv6, isIPv6InSubnet,
+  isIPv6SubnetContainedIn, doIPv6CidrsOverlap
+} from '../utils/ipv6'
 
 const FILE_NAME = 'networks.json'
+
+/** Detect address family from a CIDR string. */
+function isV6Subnet(subnet: string): boolean {
+  return subnet.includes(':')
+}
+
+/** Validate a single IP address as either IPv4 or IPv6. */
+function isValidIp(ip: string): boolean {
+  return isIPv4(ip) ? isValidIPv4(ip) : isValidIPv6(ip)
+}
+
+/** Check that gateway belongs to the same family as the subnet. */
+function validateGateway(gateway: string, subnet: string): void {
+  const gwIsV6 = gateway.includes(':')
+  const subnetIsV6 = isV6Subnet(subnet)
+  if (gwIsV6 !== subnetIsV6) {
+    throw createError({ statusCode: 400, message: `Gateway address family (${gwIsV6 ? 'IPv6' : 'IPv4'}) does not match subnet family (${subnetIsV6 ? 'IPv6' : 'IPv4'})` })
+  }
+  if (gwIsV6 && !isValidIPv6(gateway)) {
+    throw createError({ statusCode: 400, message: 'Invalid IPv6 gateway address' })
+  }
+  if (!gwIsV6 && !isValidIPv4(gateway)) {
+    throw createError({ statusCode: 400, message: 'Invalid IPv4 gateway address' })
+  }
+}
+
+/** Check that gateway is within the subnet (family-agnostic). */
+function validateGatewayInSubnet(gateway: string, subnet: string): void {
+  if (isV6Subnet(subnet)) {
+    if (!isIPv6InSubnet(gateway, subnet)) {
+      throw createError({ statusCode: 400, message: 'Gateway is not within the subnet' })
+    }
+  } else {
+    if (!isIPInSubnet(gateway, subnet)) {
+      throw createError({ statusCode: 400, message: 'Gateway is not within the subnet' })
+    }
+  }
+}
 
 export const networkRepository = {
   list(): Network[] {
@@ -35,21 +77,23 @@ export const networkRepository = {
   },
 
   create(data: Omit<Network, 'id' | 'created_at' | 'updated_at' | 'is_favorite'>): Network {
-    if (!isValidCIDR(data.subnet)) {
+    const v6 = isV6Subnet(data.subnet)
+
+    // Validate subnet CIDR
+    if (v6 ? !isValidIPv6CIDR(data.subnet) : !isValidCIDR(data.subnet)) {
       throw createError({ statusCode: 400, message: 'Invalid CIDR notation' })
     }
 
-    if (data.gateway && !isValidIPv4(data.gateway)) {
-      throw createError({ statusCode: 400, message: 'Invalid gateway IP address' })
+    // Validate gateway
+    if (data.gateway) {
+      validateGateway(data.gateway, data.subnet)
+      validateGatewayInSubnet(data.gateway, data.subnet)
     }
 
-    if (data.gateway && !isIPInSubnet(data.gateway, data.subnet)) {
-      throw createError({ statusCode: 400, message: 'Gateway is not within the subnet' })
-    }
-
+    // Validate DNS servers — each must be valid IPv4 or IPv6
     for (const dns of data.dns_servers) {
-      if (!isValidIPv4(dns)) {
-        throw createError({ statusCode: 400, message: `Invalid DNS server IP: ${dns}` })
+      if (!isValidIp(dns)) {
+        throw createError({ statusCode: 400, message: `Invalid DNS server address: ${dns}` })
       }
     }
 
@@ -64,13 +108,23 @@ export const networkRepository = {
       if (parent.site_id !== data.site_id) {
         throw createError({ statusCode: 400, message: 'Child network must belong to the same site as the parent' })
       }
-      if (!isSubnetContainedIn(data.subnet, parent.subnet)) {
+      // Families must match
+      if (isV6Subnet(parent.subnet) !== v6) {
+        throw createError({ statusCode: 400, message: 'Child subnet address family must match the parent network' })
+      }
+      const contained = v6
+        ? isIPv6SubnetContainedIn(data.subnet, parent.subnet)
+        : isSubnetContainedIn(data.subnet, parent.subnet)
+      if (!contained) {
         throw createError({ statusCode: 400, message: `Subnet ${data.subnet} is not contained within parent ${parent.subnet}` })
       }
       // Check overlap with existing siblings
       const siblings = networks.filter(n => n.parent_network_id === data.parent_network_id)
       for (const sibling of siblings) {
-        if (doCidrsOverlap(data.subnet, sibling.subnet)) {
+        const overlaps = v6
+          ? doIPv6CidrsOverlap(data.subnet, sibling.subnet)
+          : doCidrsOverlap(data.subnet, sibling.subnet)
+        if (overlaps) {
           throw createError({ statusCode: 409, message: `Subnet ${data.subnet} overlaps with existing sibling subnet ${sibling.subnet} (${sibling.name})` })
         }
       }
@@ -98,26 +152,28 @@ export const networkRepository = {
     }
 
     const current = networks[index]!
-
-    if (data.subnet && !isValidCIDR(data.subnet)) {
-      throw createError({ statusCode: 400, message: 'Invalid CIDR notation' })
-    }
-
     const subnet = data.subnet || current.subnet
     const siteId = data.site_id || current.site_id
+    const v6 = isV6Subnet(subnet)
 
-    if (data.gateway && !isValidIPv4(data.gateway)) {
-      throw createError({ statusCode: 400, message: 'Invalid gateway IP address' })
+    // Validate subnet CIDR if changed
+    if (data.subnet) {
+      if (v6 ? !isValidIPv6CIDR(data.subnet) : !isValidCIDR(data.subnet)) {
+        throw createError({ statusCode: 400, message: 'Invalid CIDR notation' })
+      }
     }
 
-    if (data.gateway && !isIPInSubnet(data.gateway, subnet)) {
-      throw createError({ statusCode: 400, message: 'Gateway is not within the subnet' })
+    // Validate gateway if provided
+    if (data.gateway) {
+      validateGateway(data.gateway, subnet)
+      validateGatewayInSubnet(data.gateway, subnet)
     }
 
+    // Validate DNS servers
     if (data.dns_servers) {
       for (const dns of data.dns_servers) {
-        if (!isValidIPv4(dns)) {
-          throw createError({ statusCode: 400, message: `Invalid DNS server IP: ${dns}` })
+        if (!isValidIp(dns)) {
+          throw createError({ statusCode: 400, message: `Invalid DNS server address: ${dns}` })
         }
       }
     }
@@ -139,10 +195,16 @@ export const networkRepository = {
       if (parent.site_id !== siteId) {
         throw createError({ statusCode: 400, message: 'Child network must belong to the same site as the parent' })
       }
-      if (!isSubnetContainedIn(subnet, parent.subnet)) {
+      if (isV6Subnet(parent.subnet) !== v6) {
+        throw createError({ statusCode: 400, message: 'Child subnet address family must match the parent network' })
+      }
+      const contained = v6
+        ? isIPv6SubnetContainedIn(subnet, parent.subnet)
+        : isSubnetContainedIn(subnet, parent.subnet)
+      if (!contained) {
         throw createError({ statusCode: 400, message: `Subnet ${subnet} is not contained within parent ${parent.subnet}` })
       }
-      // Prevent circular reference: new parent cannot be a descendant of this network
+      // Prevent circular reference
       const descendants = this._getDescendantIds(id, networks)
       if (descendants.has(newParentId)) {
         throw createError({ statusCode: 400, message: 'Cannot set a descendant network as parent (circular reference)' })
@@ -150,7 +212,10 @@ export const networkRepository = {
       // Check overlap with siblings (excluding self)
       const siblings = networks.filter(n => n.parent_network_id === newParentId && n.id !== id)
       for (const sibling of siblings) {
-        if (doCidrsOverlap(subnet, sibling.subnet)) {
+        const overlaps = v6
+          ? doIPv6CidrsOverlap(subnet, sibling.subnet)
+          : doCidrsOverlap(subnet, sibling.subnet)
+        if (overlaps) {
           throw createError({ statusCode: 409, message: `Subnet ${subnet} overlaps with existing sibling subnet ${sibling.subnet} (${sibling.name})` })
         }
       }

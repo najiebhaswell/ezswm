@@ -388,12 +388,13 @@
       "add": "Kind-Subnetz hinzufügen",
       "count": "{count} Subnetz | {count} Subnetze"
     },
-    "autoCreateUsedPrefix": "Bereich als 'Genutztes Präfix' im Elternnetz markieren",
-    "autoCreateUsedPrefixHint": "Erstellt automatisch einen Eintrag vom Typ 'Genutztes Präfix' im Elternnetz für den gesamten CIDR-Bereich dieses Subnetzes.",
-    "autoCreateUsedPrefixFailed": "Subnetz erstellt, aber 'Genutztes Präfix' konnte nicht automatisch im Elternnetz angelegt werden.",
     "autoCreateUsedPrefixInSelf": "Dieses Subnetz als vollständig genutzt markieren",
     "autoCreateUsedPrefixInSelfHint": "Erstellt automatisch einen 'Genutztes Präfix' Bereich über den gesamten IP-Raum, wodurch die Auslastung auf 100% gesetzt wird.",
     "autoCreateUsedPrefixInSelfFailed": "Subnetz erstellt, konnte aber nicht als vollständig genutzt markiert werden.",
+    "markAsFullyUtilized": "Als vollständig genutzt markieren",
+    "markAsFullyUtilizedHint": "Erstellt einen 'Genutztes Präfix' Bereich über das gesamte Subnetz und setzt die Auslastung auf 100%.",
+    "markAsFullyUtilizedSuccess": "Subnetz als vollständig genutzt markiert.",
+    "markAsFullyUtilizedFailed": "Subnetz konnte nicht als vollständig genutzt markiert werden.",
     "suggestSubnet": "Nächstes verfügbares untergeordnetes Subnetz vorschlagen",
     "suggestIp": "Nächste verfügbare IP-Adresse vorschlagen",
     "suggestFailed": "Vorschlag fehlgeschlagen",
@@ -465,6 +466,7 @@
       "networkAddress": "Netzwerk",
       "gateway": "Gateway",
       "broadcast": "Broadcast",
+      "lastAddress": "Letzte Adresse",
       "endpointA": "Endpunkt A",
       "endpointB": "Endpunkt B",
       "hostAddress": "Host-Adresse"
@@ -472,24 +474,27 @@
     "validation": {
       "nameRequired": "Name ist erforderlich",
       "subnetRequired": "Subnetz ist erforderlich",
-      "subnetFormat": "Muss gültige CIDR-Notation sein (z. B. 10.0.0.0/24)",
-      "gatewayFormat": "Muss eine gültige IPv4-Adresse sein (z. B. 10.0.0.1)",
+      "subnetFormat": "Muss gültige CIDR-Notation sein (z. B. 10.0.0.0/24 oder 2001:db8::/48)",
+      "gatewayFormat": "Muss eine gültige IP-Adresse sein (IPv4 oder IPv6)",
       "commaSeparated": "Kommagetrennt",
       "vlanIdRange": "VLAN-ID muss zwischen 1 und 4094 liegen",
       "colorFormat": "Gültiger Hex-Farbwert erforderlich (z. B. #FF5733)",
-      "managementIpFormat": "Muss eine gültige IPv4-Adresse sein (z. B. 192.168.1.1)",
+      "managementIpFormat": "Muss eine gültige IP-Adresse sein (IPv4 oder IPv6)",
       "childNotInParent": "Subnetz {child} ist nicht im Elternnetz {parent} enthalten",
-      "childOverlapsSibling": "Subnetz überschneidet sich mit einem vorhandenen Geschwister-Subnetz"
+      "childOverlapsSibling": "Subnetz überschneidet sich mit einem vorhandenen Geschwister-Subnetz",
+      "mixedFamily": "IP-Adressfamilie muss zum Subnetz passen (IPv4 vs. IPv6)"
     },
     "subnetInfo": {
       "networkAddress": "Netzwerkadresse",
       "broadcastAddress": "Broadcast-Adresse",
+      "lastAddress": "Letzte Adresse",
       "subnetMask": "Subnetzmaske",
       "wildcardMask": "Wildcard-Maske",
       "firstUsable": "Erste nutzbare IP",
       "lastUsable": "Letzte nutzbare IP",
       "totalHosts": "Gesamte Hosts",
       "usableHosts": "Nutzbare Hosts",
+      "prefixLength": "Präfixlänge",
       "endpointA": "Endpunkt A",
       "endpointB": "Endpunkt B",
       "hostAddress": "Host-Adresse"
@@ -498,6 +503,7 @@
       "subnet": "Subnetz",
       "gateway": "Gateway",
       "mask": "Maske",
+      "prefix": "Präfix",
       "hosts": "Hosts",
       "allocated": "Zugewiesen",
       "vlan": "VLAN",
@@ -633,8 +639,10 @@
     "subnetCalculator": {
       "title": "Subnetz-Rechner",
       "inputLabel": "CIDR-Notation",
-      "inputPlaceholder": "z.B. 10.0.1.0/24",
-      "results": "Ergebnisse"
+      "inputPlaceholder": "z.B. 10.0.1.0/24 oder 2001:db8::/48",
+      "results": "Ergebnisse",
+      "lastAddress": "Letzte Adresse",
+      "totalAddresses": "Gesamte Adressen"
     }
   },
   "settings": {

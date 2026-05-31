@@ -36,6 +36,7 @@
         :utilization-percent="utilizationPercent"
         v-model:show-details="showDetails"
         :format-dns="formatDns"
+        :usable-hosts-display="usableHostsDisplay"
       />
 
       <NetworkUtilizationBar
@@ -96,14 +97,14 @@
           <div
             v-for="row in unifiedList"
             :key="row.key"
-            class="group flex items-center gap-3 px-4 py-2.5 transition-colors"
-            :class="rowClass(row)"
+            class="group flex items-start gap-3 px-4 py-2.5 transition-colors"
+            :class="[rowClass(row), subnetInfo.isIPv6 ? 'flex-wrap' : 'items-center']"
             @click="onRowClick(row)"
           >
             <!-- Fixed rows (network, gateway, broadcast) -->
             <template v-if="row.kind === 'fixed'">
-              <div class="w-40 shrink-0">
-                <SharedCopyButton :value="row.ip!"><code class="font-mono text-xs text-gray-500 dark:text-gray-400">{{ row.ip }}</code></SharedCopyButton>
+              <div :class="subnetInfo.isIPv6 ? 'min-w-0 w-full sm:w-auto sm:shrink-0' : 'w-40 shrink-0'">
+                <SharedCopyButton :value="row.ip!"><code class="font-mono text-xs text-gray-500 dark:text-gray-400 break-all">{{ row.ip }}</code></SharedCopyButton>
               </div>
               <div class="flex-1">
                 <span class="text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">{{ row.label }}</span>
@@ -112,8 +113,8 @@
 
             <!-- Allocation rows -->
             <template v-else-if="row.kind === 'allocation'">
-              <div class="w-40 shrink-0">
-                <SharedCopyButton :value="(row.data as IPAllocation).ip_address"><code class="font-mono text-xs text-gray-900 dark:text-white">{{ (row.data as IPAllocation).ip_address }}</code></SharedCopyButton>
+              <div :class="subnetInfo.isIPv6 ? 'min-w-0 w-full sm:w-auto sm:shrink-0' : 'w-40 shrink-0'">
+                <SharedCopyButton :value="(row.data as IPAllocation).ip_address"><code class="font-mono text-xs text-gray-900 dark:text-white break-all">{{ (row.data as IPAllocation).ip_address }}</code></SharedCopyButton>
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
@@ -134,19 +135,42 @@
 
             <!-- Range rows -->
             <template v-else-if="row.kind === 'range'">
-              <div class="w-40 shrink-0">
-                <SharedCopyButton :value="`${(row.data as IPRange).start_ip} - ${(row.data as IPRange).end_ip}`"><code class="font-mono text-sm font-medium text-gray-900 dark:text-white">{{ (row.data as IPRange).start_ip }}</code><span class="font-mono text-xs text-gray-400"> – {{ abbreviateEndIp((row.data as IPRange).start_ip, (row.data as IPRange).end_ip) }}</span></SharedCopyButton>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2">
-                  <UBadge :color="rangeTypeBadgeColor((row.data as IPRange).type)" variant="subtle" size="sm">{{ $t(`networks.ranges.types.${(row.data as IPRange).type}`) }}</UBadge>
-                  <span v-if="(row.data as IPRange).type !== 'used_prefix'" class="font-mono text-[11px] text-gray-400">{{ $t('networks.ranges.ipCount', { count: rangeIpCount((row.data as IPRange).start_ip, (row.data as IPRange).end_ip) }) }}</span>
-                  <span v-if="(row.data as IPRange).description" class="text-xs text-gray-500 dark:text-gray-400">{{ (row.data as IPRange).description }}</span>
-                  <span v-if="(row.data as IPRange).type !== 'dhcp' && (row.data as IPRange).type !== 'used_prefix' && countAllocsInRange(row.data as IPRange) > 0" class="text-xs text-gray-400">
-                    ({{ $t('networks.ranges.ipsDocumented', { count: countAllocsInRange(row.data as IPRange) }) }})
-                  </span>
+              <!-- IPv6: show start and end on separate lines to avoid overflow -->
+              <div v-if="subnetInfo.isIPv6" class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
+                  <!-- start – end block -->
+                  <div class="min-w-0">
+                    <SharedCopyButton :value="`${(row.data as IPRange).start_ip} - ${(row.data as IPRange).end_ip}`">
+                      <code class="block font-mono text-xs font-medium text-gray-900 dark:text-white break-all">{{ (row.data as IPRange).start_ip }}</code>
+                      <code class="block font-mono text-xs text-gray-400 break-all">{{ (row.data as IPRange).end_ip }}</code>
+                    </SharedCopyButton>
+                  </div>
+                  <!-- badges row -->
+                  <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                    <UBadge :color="rangeTypeBadgeColor((row.data as IPRange).type)" variant="subtle" size="sm">{{ $t(`networks.ranges.types.${(row.data as IPRange).type}`) }}</UBadge>
+                    <span v-if="(row.data as IPRange).description" class="text-xs text-gray-500 dark:text-gray-400">{{ (row.data as IPRange).description }}</span>
+                    <span v-if="(row.data as IPRange).type !== 'dhcp' && (row.data as IPRange).type !== 'used_prefix' && countAllocsInRange(row.data as IPRange) > 0" class="text-xs text-gray-400">
+                      ({{ $t('networks.ranges.ipsDocumented', { count: countAllocsInRange(row.data as IPRange) }) }})
+                    </span>
+                  </div>
                 </div>
               </div>
+              <!-- IPv4: original single-line layout -->
+              <template v-else>
+                <div class="w-40 shrink-0">
+                  <SharedCopyButton :value="`${(row.data as IPRange).start_ip} - ${(row.data as IPRange).end_ip}`"><code class="font-mono text-sm font-medium text-gray-900 dark:text-white">{{ (row.data as IPRange).start_ip }}</code><span class="font-mono text-xs text-gray-400"> – {{ abbreviateEndIp((row.data as IPRange).start_ip, (row.data as IPRange).end_ip) }}</span></SharedCopyButton>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <UBadge :color="rangeTypeBadgeColor((row.data as IPRange).type)" variant="subtle" size="sm">{{ $t(`networks.ranges.types.${(row.data as IPRange).type}`) }}</UBadge>
+                    <span v-if="(row.data as IPRange).type !== 'used_prefix'" class="font-mono text-[11px] text-gray-400">{{ $t('networks.ranges.ipCount', { count: rangeIpCount((row.data as IPRange).start_ip, (row.data as IPRange).end_ip) }) }}</span>
+                    <span v-if="(row.data as IPRange).description" class="text-xs text-gray-500 dark:text-gray-400">{{ (row.data as IPRange).description }}</span>
+                    <span v-if="(row.data as IPRange).type !== 'dhcp' && (row.data as IPRange).type !== 'used_prefix' && countAllocsInRange(row.data as IPRange) > 0" class="text-xs text-gray-400">
+                      ({{ $t('networks.ranges.ipsDocumented', { count: countAllocsInRange(row.data as IPRange) }) }})
+                    </span>
+                  </div>
+                </div>
+              </template>
               <div class="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                 <UButton icon="i-heroicons-pencil-square" variant="ghost" color="primary" size="xs" @click.stop="openRangeEdit(row.data as IPRange)" />
                 <UButton icon="i-heroicons-trash" variant="ghost" color="error" size="xs" @click.stop="openDeleteRange(row.data as IPRange)" />
@@ -186,6 +210,20 @@
           <UFormField :label="$t('common.description')" name="description">
             <UTextarea v-model="editForm.description" :rows="3" class="w-full" />
           </UFormField>
+
+          <!-- Mark as fully utilized -->
+          <div v-if="!hasFullCoverageRange" class="rounded-lg border border-default bg-elevated/30 p-3">
+            <label class="flex cursor-pointer items-start gap-3">
+              <input v-model="markFullyUtilized" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-500 focus:ring-primary-500" />
+              <div>
+                <span class="text-sm font-medium text-gray-200">{{ $t('networks.markAsFullyUtilized') }}</span>
+                <p class="mt-0.5 text-xs text-gray-400">{{ $t('networks.markAsFullyUtilizedHint') }}</p>
+              </div>
+            </label>
+          </div>
+          <div v-else class="rounded-lg border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-xs text-violet-400">
+            {{ $t('networks.ranges.types.used_prefix') }} — {{ $t('networks.infoBar.allocated') }}: 100%
+          </div>
         </UForm>
       </template>
 
@@ -336,22 +374,57 @@ const editAllocTarget = ref<IPAllocation | null>(null)
 
 const editForm = ref({ name: '', subnet: '', gateway: '', vlan_id: '', description: '' })
 const editDnsInput = ref('')
+const markFullyUtilized = ref(false)
 const allocForm = ref({ ip_address: '', hostname: '', mac_address: '', device_type: '', description: '', status: 'active' as AllocationStatus })
 const rangeForm = ref({ start_ip: '', end_ip: '', type: 'static' as RangeType, description: '' })
 
-// Count IPs covered by used_prefix ranges
+// Count IPs covered by used_prefix ranges (IPv4 + IPv6 aware)
 const usedPrefixIpCount = computed(() => {
   let count = 0
   for (const r of ranges.value) {
     if (r.type === 'used_prefix') {
-      count += ipToLong(r.end_ip) - ipToLong(r.start_ip) + 1
+      if (r.start_ip.includes(':')) {
+        // IPv6: count is potentially huge — skip numeric counting, treat as 0 for the bar
+        // The utilization bar will show 0% for IPv6 used_prefix (acceptable for now)
+      } else {
+        count += ipToLong(r.end_ip) - ipToLong(r.start_ip) + 1
+      }
     }
   }
   return count
 })
 
+/** Whether a used_prefix range already covers the full subnet space */
+const hasFullCoverageRange = computed(() => {
+  if (!network.value) return false
+  const netAddr = network.value.subnet.split('/')[0]
+  const lastAddr = computeBroadcast(network.value.subnet)
+  return ranges.value.some(r =>
+    r.type === 'used_prefix' && r.start_ip === netAddr && r.end_ip === lastAddr
+  )
+})
+
+/** Utilization % fetched from API (includes child networks + used_prefix ranges) */
+const apiUtilizationPercent = ref<number | null>(null)
+
+async function fetchUtilizationPercent() {
+  try {
+    const data = await $fetch<{ utilization_percent: number }>(`/api/networks/${networkId}/utilization`)
+    apiUtilizationPercent.value = data.utilization_percent
+  } catch {
+    apiUtilizationPercent.value = null
+  }
+}
+
 const utilizationPercent = computed(() => {
+  // Prefer API value which accounts for child networks
+  if (apiUtilizationPercent.value !== null) return apiUtilizationPercent.value
+  // Fallback: local computation while API is loading
   if (!subnetInfo.value.usableHosts || subnetInfo.value.usableHosts <= 0) return 0
+  if (subnetInfo.value.isIPv6) {
+    if (ranges.value.some(r => r.type === 'used_prefix')) return 100
+    return Math.min(100, Math.round((allocations.value.length / subnetInfo.value.usableHosts) * 100))
+  }
   const usedIps = allocations.value.length + usedPrefixIpCount.value
   return Math.min(100, Math.round((usedIps / subnetInfo.value.usableHosts) * 100))
 })
@@ -387,7 +460,9 @@ const breadcrumbOverrides = useState<Record<string, string>>('breadcrumb-overrid
 watch(network, (n) => { if (n?.name) breadcrumbOverrides.value[`/sites/${siteId.value}/subnets/${networkId}`] = n.name }, { immediate: true })
 
 const vlanOptions = computed(() => {
-  const opts: { label: string; value: string }[] = []
+  const opts: { label: string; value: string }[] = [
+    { label: '— No VLAN —', value: '_no_vlan' }
+  ]
   vlans.value.forEach((v) => { opts.push({ label: `VLAN ${v.vlan_id} - ${v.name}`, value: v.id }) })
   return opts
 })
@@ -423,8 +498,47 @@ const rangeTypeOptions = computed(() => [
 
 const subnetInfo = computed(() => parseSubnetInfo(network.value?.subnet ?? ''))
 
-const isPointToPoint = computed(() => subnetInfo.value.prefix === 31)
-const isHostRoute = computed(() => subnetInfo.value.prefix === 32)
+/** Human-readable usable host count: for IPv6 returns the full BigInt decimal string */
+const usableHostsDisplay = computed(() => {
+  if (!network.value) return '0'
+  if (subnetInfo.value.isIPv6) {
+    const prefix = subnetInfo.value.prefix
+    const hostBits = 128 - prefix
+
+    if (hostBits <= 53) {
+      // Small enough to represent exactly as JS number
+      const exact = (1n << BigInt(hostBits)) - (prefix >= 127 ? 0n : 2n)
+      return Number(exact).toLocaleString()
+    }
+
+    // Too large for exact JS number — show as power-of-2 approximation
+    // e.g. /48 → "~2^80" (exact readable form)
+    const bigTotal = 1n << BigInt(hostBits)
+    const bigUsable = prefix >= 127 ? bigTotal : (bigTotal > 2n ? bigTotal - 2n : bigTotal)
+
+    // Format: show exact power if it's a clean power of 2, otherwise ~N×2^M
+    // Find the highest set bit
+    let tmp = bigUsable
+    let bits = 0
+    while (tmp > 1n) { tmp >>= 1n; bits++ }
+    const isPowerOf2 = (bigUsable & (bigUsable - 1n)) === 0n
+    if (isPowerOf2) {
+      return `2^${bits}`
+    }
+    // Not exact power of 2 — show approximate
+    return `~2^${hostBits}`
+  }
+  return subnetInfo.value.usableHosts.toLocaleString()
+})
+
+const isPointToPoint = computed(() => {
+  if (subnetInfo.value.isIPv6) return subnetInfo.value.prefix === 127
+  return subnetInfo.value.prefix === 31
+})
+const isHostRoute = computed(() => {
+  if (subnetInfo.value.isIPv6) return subnetInfo.value.prefix === 128
+  return subnetInfo.value.prefix === 32
+})
 const isSpecialNet = computed(() => isPointToPoint.value || isHostRoute.value)
 
 // Unified list computed
@@ -440,34 +554,48 @@ interface UnifiedRow {
 const unifiedList = computed<UnifiedRow[]>(() => {
   const rows: UnifiedRow[] = []
   const info = subnetInfo.value
+  const v6 = info.isIPv6
 
-  // Fixed rows — context-dependent labels for special subnets
+  /** Return a numeric sort key. For IPv6 we cap to MAX_SAFE_INTEGER. */
+  function sortKey(ip: string): number {
+    if (!ip || ip === '-') return 0
+    try {
+      if (v6 || ip.includes(':')) {
+        // Use lower 53 bits of the address for sort stability within a /64 or smaller
+        const n = BigInt('0x' + ip.split(':').map(g => g.padStart(4, '0')).join(''))
+        return Number(n & BigInt(Number.MAX_SAFE_INTEGER))
+      }
+      return ipToLong(ip)
+    } catch { return 0 }
+  }
+
+  // Fixed rows — context-dependent labels
   if (info.network !== '-') {
     const netLabel = isHostRoute.value
       ? t('networks.unified.hostAddress')
       : isPointToPoint.value
         ? t('networks.unified.endpointA')
         : t('networks.unified.networkAddress')
-    rows.push({ key: 'net', kind: 'fixed', sortIp: ipToLong(info.network), ip: info.network, label: netLabel })
+    rows.push({ key: 'net', kind: 'fixed', sortIp: sortKey(info.network), ip: info.network, label: netLabel })
   }
   if (network.value?.gateway) {
-    rows.push({ key: 'gw', kind: 'fixed', sortIp: ipToLong(network.value.gateway), ip: network.value.gateway, label: t('networks.unified.gateway') })
+    rows.push({ key: 'gw', kind: 'fixed', sortIp: sortKey(network.value.gateway), ip: network.value.gateway, label: t('networks.unified.gateway') })
   }
   if (info.broadcast !== '-' && !isHostRoute.value) {
     const bcLabel = isPointToPoint.value
       ? t('networks.unified.endpointB')
-      : t('networks.unified.broadcast')
-    rows.push({ key: 'bc', kind: 'fixed', sortIp: ipToLong(info.broadcast), ip: info.broadcast, label: bcLabel })
+      : v6 ? t('networks.unified.lastAddress') : t('networks.unified.broadcast')
+    rows.push({ key: 'bc', kind: 'fixed', sortIp: sortKey(info.broadcast), ip: info.broadcast, label: bcLabel })
   }
 
   // Allocation rows
   for (const a of allocations.value) {
-    rows.push({ key: `alloc-${a.id}`, kind: 'allocation', sortIp: ipToLong(a.ip_address), data: a })
+    rows.push({ key: `alloc-${a.id}`, kind: 'allocation', sortIp: sortKey(a.ip_address), data: a })
   }
 
   // Range rows
   for (const r of ranges.value) {
-    rows.push({ key: `range-${r.id}`, kind: 'range', sortIp: ipToLong(r.start_ip), data: r })
+    rows.push({ key: `range-${r.id}`, kind: 'range', sortIp: sortKey(r.start_ip), data: r })
   }
 
   rows.sort((a, b) => a.sortIp - b.sortIp)
@@ -549,7 +677,7 @@ function openRangeEdit(range: IPRange) {
 
 function startEdit() {
   if (!network.value) return
-  editForm.value = { name: network.value.name, subnet: network.value.subnet, gateway: network.value.gateway || '', vlan_id: network.value.vlan_id || '', description: network.value.description || '' }
+  editForm.value = { name: network.value.name, subnet: network.value.subnet, gateway: network.value.gateway || '', vlan_id: network.value.vlan_id || '_no_vlan', description: network.value.description || '' }
   editDnsInput.value = network.value.dns_servers?.join(', ') || ''
   editing.value = true
 }
@@ -561,11 +689,22 @@ function validate(state: typeof editForm.value) {
   }
   if (!state.subnet?.trim()) {
     errors.push({ name: 'subnet', message: t('networks.validation.subnetRequired') })
-  } else if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/.test(state.subnet.trim())) {
-    errors.push({ name: 'subnet', message: t('networks.validation.subnetFormat') })
+  } else {
+    const s = state.subnet.trim()
+    const isV6 = s.includes(':')
+    const validV4 = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,3}$/.test(s)
+    const validV6 = isV6 && s.includes('/')
+    if (!validV4 && !validV6) {
+      errors.push({ name: 'subnet', message: t('networks.validation.subnetFormat') })
+    }
   }
-  if (state.gateway?.trim() && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(state.gateway.trim())) {
-    errors.push({ name: 'gateway', message: t('networks.validation.gatewayFormat') })
+  if (state.gateway?.trim()) {
+    const gw = state.gateway.trim()
+    const validV4 = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(gw)
+    const validV6 = gw.includes(':')
+    if (!validV4 && !validV6) {
+      errors.push({ name: 'gateway', message: t('networks.validation.gatewayFormat') })
+    }
   }
   return errors
 }
@@ -574,12 +713,46 @@ async function onSave() {
   saving.value = true
   try {
     const dnsServers = editDnsInput.value ? editDnsInput.value.split(',').map((s: string) => s.trim()).filter(Boolean) : []
-    await updateNetwork(networkId, { name: editForm.value.name.trim(), subnet: editForm.value.subnet.trim(), gateway: editForm.value.gateway.trim() || undefined, dns_servers: dnsServers, vlan_id: editForm.value.vlan_id || undefined, description: editForm.value.description.trim() || undefined })
+    await updateNetwork(networkId, { name: editForm.value.name.trim(), subnet: editForm.value.subnet.trim(), gateway: editForm.value.gateway.trim() || undefined, dns_servers: dnsServers, vlan_id: editForm.value.vlan_id && editForm.value.vlan_id !== '_no_vlan' ? editForm.value.vlan_id : undefined, description: editForm.value.description.trim() || undefined })
+
+    // Mark as fully utilized if requested
+    if (markFullyUtilized.value && !hasFullCoverageRange.value && network.value) {
+      await markNetworkAsFullyUtilized(network.value)
+    }
+
     toast.add({ title: t('networks.messages.updated'), color: 'success' })
     editing.value = false
+    markFullyUtilized.value = false
     await loadNetwork()
   } catch (err: unknown) { const error = err as { data?: { message?: string } }; toast.add({ title: error?.data?.message || t('errors.serverError'), color: 'error' }) }
   finally { saving.value = false }
+}
+
+async function markNetworkAsFullyUtilized(net: Network) {
+  const startIp = net.subnet.split('/')[0]!
+  const endIp = computeLastAddress(net.subnet)
+  try {
+    await $fetch(`/api/networks/${net.id}/ranges`, {
+      method: 'POST',
+      body: { start_ip: startIp, end_ip: endIp, type: 'used_prefix', description: 'Allocated / fully utilized' }
+    })
+    toast.add({ title: t('networks.markAsFullyUtilizedSuccess'), color: 'success' })
+  } catch (err: unknown) {
+    const e = err as { data?: { message?: string } }
+    toast.add({ title: t('networks.markAsFullyUtilizedFailed'), description: e?.data?.message, color: 'warning' })
+  }
+}
+
+/** Compute last address of a CIDR (broadcast for IPv4, last address for IPv6) */
+function computeBroadcast(cidr: string): string {
+  // Delegate to parseSubnetInfo which handles both IPv4 and IPv6
+  const info = parseSubnetInfo(cidr)
+  return info.broadcast
+}
+
+/** Return last usable address (broadcast for IPv4, last address for IPv6) from CIDR */
+function computeLastAddress(cidr: string): string {
+  return computeBroadcast(cidr)
 }
 
 async function confirmDeleteNetwork() {
@@ -622,6 +795,7 @@ async function onCreateAllocation() {
     editAllocTarget.value = null
     allocForm.value = { ip_address: '', hostname: '', mac_address: '', device_type: '', description: '', status: 'active' as AllocationStatus }
     await fetchAllocations()
+    void fetchUtilizationPercent()
   } catch (err: unknown) {
     const error = err as { data?: { message?: string } }
     addPanelError.value = error?.data?.message || t('errors.serverError')
@@ -673,6 +847,7 @@ async function confirmDeleteAlloc() {
     showDeleteAllocDialog.value = false
     allocDeleteRefs.value = []
     await fetchAllocations()
+    void fetchUtilizationPercent()
   }
   catch (err: unknown) { const error = err as { data?: { message?: string } }; toast.add({ title: error?.data?.message || t('errors.serverError'), color: 'error' }) }
   finally { deletingAlloc.value = false }
@@ -687,6 +862,7 @@ async function onCreateRange() {
     showAddPanel.value = false
     rangeForm.value = { start_ip: '', end_ip: '', type: 'static' as RangeType, description: '' }
     await fetchRanges()
+    void fetchUtilizationPercent()
   } catch (err: unknown) {
     const error = err as { data?: { message?: string } }
     addPanelError.value = error?.data?.message || t('errors.serverError')
@@ -703,7 +879,7 @@ function openDeleteRangeDialog(r: IPRange) {
 async function confirmDeleteRange() {
   if (!deleteRangeTarget.value) return
   deletingRange.value = true
-  try { await removeRange(deleteRangeTarget.value.id); toast.add({ title: t('networks.ranges.messages.deleted'), color: 'success' }); showDeleteRangeDialog.value = false; await fetchRanges() }
+  try { await removeRange(deleteRangeTarget.value.id); toast.add({ title: t('networks.ranges.messages.deleted'), color: 'success' }); showDeleteRangeDialog.value = false; await fetchRanges(); void fetchUtilizationPercent() }
   catch (err: unknown) { const error = err as { data?: { message?: string } }; toast.add({ title: error?.data?.message || t('errors.serverError'), color: 'error' }) }
   finally { deletingRange.value = false }
 }
@@ -722,6 +898,7 @@ async function onSaveRangeEdit() {
     toast.add({ title: t('networks.ranges.messages.updated'), color: 'success' })
     showRangeEdit.value = false
     await fetchRanges()
+    void fetchUtilizationPercent()
   } catch (err: unknown) {
     const error = err as { data?: { message?: string } }
     rangeEditError.value = error?.data?.message || t('errors.serverError')
@@ -749,5 +926,13 @@ async function loadNetwork() {
 
 const siteParams = computed(() => siteId.value && siteId.value !== 'all' ? { site_id: siteId.value } : {})
 
-onMounted(async () => { await Promise.all([loadNetwork(), fetchVlans(siteParams.value), fetchAllocations(), fetchRanges()]) })
+onMounted(async () => {
+  await Promise.all([
+    loadNetwork(),
+    fetchVlans(siteParams.value),
+    fetchAllocations(),
+    fetchRanges(),
+    fetchUtilizationPercent(),
+  ])
+})
 </script>

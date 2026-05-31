@@ -2,6 +2,77 @@
 
 ## Latest Stage
 
+Date: 2026-05-31
+Stage: Phase 35 — IPv6 Utilization & UI Fixes
+Status: Complete
+Version: 0.23.0
+
+### Phase 35 — IPv6 Utilization & UI Fixes
+
+Resolved utilization reporting inconsistencies and UX gaps introduced after IPv6 dual-stack support, ensuring parent/child subnet relationships are correctly reflected in utilization metrics across all surfaces.
+
+#### Backend Changes
+- **`server/api/networks/[id]/utilization.get.ts`** — Now counts `used_prefix` IP ranges (BigInt for IPv6) AND direct child network space in utilization %, matching dashboard logic exactly
+- **`server/api/dashboard/stats.get.ts`** — Same child-network accounting added for both IPv4 and IPv6 branches; parent networks with delegated child subnets now show correct % in IP Utilization panel
+
+#### Frontend Changes
+- **`app/pages/sites/[siteId]/subnets/[id].vue`**
+  - `utilizationPercent` now fetched from `/api/networks/${id}/utilization` via `apiUtilizationPercent` ref (accurate, includes child networks); local computed used only as loading fallback
+  - `usableHostsDisplay` rewritten using pure BigInt arithmetic — eliminates float64 overflow that caused negative display (e.g. `-1.21e+24`); shows `2^N` notation for large IPv6 prefixes
+  - Added `markFullyUtilized` checkbox to edit slideover; `hasFullCoverageRange` computed detects if subnet is already fully covered
+  - `computeBroadcast()` helper added (delegates to `parseSubnetInfo`) supporting both IPv4 and IPv6
+  - `fetchUtilizationPercent()` called on mount and after every alloc/range mutation
+- **`app/components/network/NetworkInfoBar.vue`** — Fixed label PREFIX (IPv6) vs MASK (IPv4); added `usableHostsDisplay` prop; fixed typo `SheredCopyButton`; adaptive broadcast label ("Last Address" for IPv6)
+- **`app/pages/sites/[siteId]/subnets/create.vue`** — Removed "Mark range as 'Used Prefix' in parent" option entirely; kept only "Mark this subnet as fully utilized"
+- **`i18n/locales/en.json`** + **`i18n/locales/de.json`** — Added `networks.infoBar.prefix`, `networks.markAsFullyUtilized*` keys; removed obsolete `autoCreateUsedPrefix*` keys
+
+#### Design Notes
+- Utilization formula: `(allocations + used_prefix_ranges + child_network_sizes) / usable_hosts × 100`
+- Large IPv6 host counts displayed as `2^N` (e.g. /48 → `2^80`) using pure BigInt — no float arithmetic
+- `_no_vlan` sentinel value standardised across all subnet forms (create + edit)
+
+
+### Phase 33 — IPv6 Dual-Stack Support
+
+Full dual-stack IPv6 support added across all layers (backend utilities, repositories, validators, API routes, and frontend). Existing IPv4 data and functionality are entirely unaffected — all changes are additive.
+
+#### New Files
+- **`server/utils/ipv6.ts`** — 128-bit BigInt-based IPv6 utility library (expand, compress, parse subnet, membership check, overlap detection, next-available helpers)
+- **`tests/ipv6.test.ts`** — 60 unit tests covering all IPv6 utility exports
+
+#### Modified Backend
+- **`server/utils/ipv4.ts`** — Added `isIPv4()` / `isCIDRv4()` type-guard helpers for family routing
+- **`server/validators/networkSchemas.ts`** — Accept IPv4 or IPv6 CIDR for `subnet`; IPv4 or IPv6 for `gateway` and `dns_servers`
+- **`server/validators/ipAllocationSchemas.ts`** — Accept IPv4 or IPv6 for `ip_address`
+- **`server/validators/ipRangeSchemas.ts`** — Accept IPv4 or IPv6 for `start_ip` / `end_ip`
+- **`server/repositories/networkRepository.ts`** — Family-aware validation: CIDR, gateway membership, containment, sibling overlap, mixed-family guard
+- **`server/repositories/ipAllocationRepository.ts`** — Family-aware: IP validation, usable host check, DHCP range conflict, child subnet conflict
+- **`server/repositories/ipRangeRepository.ts`** — Family-aware: format, ordering, membership, overlap, child subnet conflict; /127 and /128 block DHCP
+- **`server/api/subnet-calculator.get.ts`** — Detects IPv6 CIDR, returns IPv6-specific response (`network_address`, `last_address`, `total_addresses` as string)
+- **`server/api/networks/[id]/next-subnet.get.ts`** — Routes to `findNextAvailableIPv6Subnet` for IPv6 parent networks
+- **`server/api/networks/[id]/next-ip.get.ts`** — Routes to `findNextAvailableIPv6` for IPv6 networks
+
+#### Modified Frontend
+- **`app/utils/subnetCalculations.ts`** — `parseSubnetInfo`, `abbreviateEndIp`, `rangeIpCount`, `findNetworkForIP` all handle IPv6; BigInt math inline for browser
+- **`app/pages/sites/[siteId]/subnets/create.vue`** — Accepts IPv6 CIDRs in validation; dynamic placeholders; suggest-prefix max 128; `computeBroadcast` supports IPv6
+- **`app/pages/sites/[siteId]/subnets/[id].vue`** — IPv6-aware `isPointToPoint`/`isHostRoute`; BigInt-safe sort keys; `validate()` accepts IPv6; IPv6 usedPrefix count safety
+- **`app/pages/tools/subnet-calculator.vue`** — Dedicated IPv6 result panel with `last_address`, `total_addresses` display; `ip_version` field drives UI branching
+- **`i18n/locales/en.json`** + **`i18n/locales/de.json`** — New keys: `unified.lastAddress`, `subnetInfo.lastAddress/prefixLength`, `validation.mixedFamily/subnetFormat/gatewayFormat`, `tools.subnetCalculator.lastAddress/totalAddresses`
+
+#### Design Notes
+- One `Network` entity = one address family; dual-stack is modelled as two separate Network records on the same VLAN
+- Mixed-family errors (IPv4 gateway in IPv6 network) are rejected with a clear 400 error
+- For IPv6 networks, `total_addresses` is returned as a decimal string (BigInt cannot serialize to JSON Number safely)
+- `Switch.management_ip` now implicitly accepts IPv6 (validator accepts any IP string; displayed as-is)
+
+#### Tests
+- All 495 tests pass (`pnpm test`)
+- `pnpm build` succeeds (✨ Build complete!)
+
+---
+
+## Previous Stage
+
 Date: 2026-05-25
 Stage: Setup Wizard — Operator-Named First Site
 Status: Complete

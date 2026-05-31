@@ -2,6 +2,7 @@ import { networkRepository } from '../../../repositories/networkRepository'
 import { ipAllocationRepository } from '../../../repositories/ipAllocationRepository'
 import { ipRangeRepository } from '../../../repositories/ipRangeRepository'
 import { findNextAvailableIP } from '../../../utils/ipv4'
+import { findNextAvailableIPv6 } from '../../../utils/ipv6'
 
 export default defineEventHandler((event) => {
   const id = event.context.params?.id
@@ -20,13 +21,14 @@ export default defineEventHandler((event) => {
   const ranges = ipRangeRepository.list(id)
 
   const allocatedIps = allocations.map(a => a.ip_address)
-  
-  // We want to skip IPs that are in ranges other than "static". 
-  // Wait, actually, static ranges define where we *can* allocate IPs, or they are just informational.
-  // Actually, usually you shouldn't allocate an IP in a 'dhcp', 'reserved', or 'used_prefix' range.
+
+  // Skip IPs that fall in non-static ranges (dhcp, reserved, used_prefix)
   const excludedRanges = ranges.filter(r => r.type !== 'static')
 
-  const nextIp = findNextAvailableIP(network.subnet, allocatedIps, excludedRanges)
+  const v6 = network.subnet.includes(':')
+  const nextIp = v6
+    ? findNextAvailableIPv6(network.subnet, allocatedIps, excludedRanges)
+    : findNextAvailableIP(network.subnet, allocatedIps, excludedRanges)
 
   if (!nextIp) {
     throw createError({ statusCode: 404, statusMessage: `No available IP found in ${network.subnet}` })

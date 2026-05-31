@@ -1,5 +1,6 @@
 import { networkRepository } from '../../../repositories/networkRepository'
 import { findNextAvailableSubnet } from '../../../utils/ipv4'
+import { findNextAvailableIPv6Subnet } from '../../../utils/ipv6'
 
 export default defineEventHandler((event) => {
   const id = event.context.params?.id
@@ -23,8 +24,11 @@ export default defineEventHandler((event) => {
 
   const children = networkRepository.listChildren(id)
   const existingCidrs = children.map(c => c.subnet)
+  const v6 = network.subnet.includes(':')
 
-  const nextSubnet = findNextAvailableSubnet(network.subnet, existingCidrs, requestedPrefix)
+  const nextSubnet = v6
+    ? findNextAvailableIPv6Subnet(network.subnet, existingCidrs, requestedPrefix)
+    : findNextAvailableSubnet(network.subnet, existingCidrs, requestedPrefix)
 
   if (!nextSubnet) {
     throw createError({ statusCode: 404, statusMessage: `No available /${requestedPrefix} space found in ${network.subnet}` })

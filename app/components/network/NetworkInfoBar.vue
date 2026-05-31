@@ -18,14 +18,21 @@
         <SharedCopyButton :value="network.gateway"><span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ network.gateway }}</span></SharedCopyButton>
       </div>
       <div v-if="network.gateway" class="h-8 w-px bg-neutral-200 dark:bg-neutral-700" />
+      <div class="h-8 w-px bg-neutral-200 dark:bg-neutral-700" />
+      <!-- MASK for IPv4 / PREFIX for IPv6 -->
       <div>
-        <div class="text-[10px] uppercase tracking-wider text-gray-400">{{ $t('networks.infoBar.mask') }}</div>
-        <SharedCopyButton :value="subnetInfo.mask"><span class="font-mono text-sm text-gray-600 dark:text-gray-300">{{ subnetInfo.mask }}</span></SharedCopyButton>
+        <div class="text-[10px] uppercase tracking-wider text-gray-400">
+          {{ subnetInfo.isIPv6 ? $t('networks.infoBar.prefix') : $t('networks.infoBar.mask') }}
+        </div>
+        <SharedCopyButton v-if="!subnetInfo.isIPv6" :value="subnetInfo.mask"><span class="font-mono text-sm text-gray-600 dark:text-gray-300">{{ subnetInfo.mask }}</span></SharedCopyButton>
+        <span v-else class="font-mono text-sm text-gray-600 dark:text-gray-300">{{ subnetInfo.mask }}</span>
       </div>
       <div class="h-8 w-px bg-neutral-200 dark:bg-neutral-700" />
       <div>
         <div class="text-[10px] uppercase tracking-wider text-gray-400">{{ $t('networks.infoBar.hosts') }}</div>
-        <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ subnetInfo.usableHosts.toLocaleString() }}</div>
+        <div class="text-sm font-semibold text-gray-900 dark:text-white">
+          {{ usableHostsDisplay }}
+        </div>
       </div>
       <div class="h-8 w-px bg-neutral-200 dark:bg-neutral-700" />
       <div>
@@ -77,7 +84,9 @@
           </div>
           <div class="h-8 w-px bg-neutral-200 dark:bg-neutral-700" />
           <div>
-            <div class="text-[10px] uppercase tracking-wider text-gray-400">{{ $t('networks.infoBar.broadcast') }}</div>
+            <div class="text-[10px] uppercase tracking-wider text-gray-400">
+              {{ subnetInfo.isIPv6 ? $t('networks.subnetInfo.lastAddress') : $t('networks.infoBar.broadcast') }}
+            </div>
             <SharedCopyButton :value="subnetInfo.broadcast"><span class="font-mono text-sm text-gray-600 dark:text-gray-300">{{ subnetInfo.broadcast }}</span></SharedCopyButton>
           </div>
         </template>
@@ -99,7 +108,7 @@ import type { VLAN } from '~~/types/vlan'
 
 const props = defineProps<{
   network: Network
-  subnetInfo: { network: string; broadcast: string; mask: string; totalHosts: number; usableHosts: number; prefix: number }
+  subnetInfo: { network: string; broadcast: string; mask: string; totalHosts: number; usableHosts: number; prefix: number; isIPv6?: boolean }
   isPointToPoint: boolean
   isHostRoute: boolean
   associatedVlan: VLAN | null
@@ -107,7 +116,11 @@ const props = defineProps<{
   utilizationPercent: number
   showDetails: boolean
   formatDns: (servers: string[]) => string
+  usableHostsDisplay?: string
 }>()
+
+const { t } = useI18n()
+const usableHostsDisplay = computed(() => props.usableHostsDisplay ?? props.subnetInfo.usableHosts.toLocaleString())
 
 const emit = defineEmits<{ 'update:showDetails': [value: boolean] }>()
 </script>

@@ -16,13 +16,13 @@
             </UFormField>
             <UFormField :label="$t('networks.fields.subnet')" name="subnet" required>
               <div class="flex gap-2">
-                <UInput v-model="form.subnet" placeholder="10.0.1.0/24" class="flex-1" />
+                <UInput v-model="form.subnet" placeholder="10.0.1.0/24 or 2001:db8::/48" class="flex-1" />
                 <UPopover v-if="selectedParent">
                   <UButton color="primary" variant="soft" icon="i-heroicons-sparkles" :title="$t('networks.suggestSubnet')" />
                   <template #content>
                     <div class="flex items-center gap-2 p-3">
                       <span class="text-sm">Prefix: /</span>
-                      <UInput v-model="suggestPrefix" type="number" min="1" max="32" class="w-20" size="sm" />
+                      <UInput v-model="suggestPrefix" type="number" min="1" :max="isIPv6Subnet ? 128 : 32" class="w-20" size="sm" />
                       <UButton size="sm" :loading="suggestingSubnet" @click="doSuggestSubnet">{{ $t('common.suggest') }}</UButton>
                     </div>
                   </template>
@@ -35,10 +35,10 @@
               </template>
             </UFormField>
             <UFormField :label="$t('networks.fields.gateway')">
-              <UInput v-model="form.gateway" placeholder="10.0.1.1" class="w-full" />
+                <UInput v-model="form.gateway" :placeholder="isIPv6Subnet ? 'fe80::1' : '10.0.1.1'" class="w-full" />
             </UFormField>
             <UFormField :label="$t('networks.fields.dnsServers')">
-              <UInput v-model="dnsInput" placeholder="8.8.8.8, 8.8.4.4" class="w-full" />
+              <UInput v-model="dnsInput" :placeholder="isIPv6Subnet ? '2606:4700:4700::1111' : '8.8.8.8, 8.8.4.4'" class="w-full" />
               <template #hint>
                 <span class="text-xs text-gray-500">{{ $t('networks.validation.commaSeparated') }}</span>
               </template>
@@ -65,19 +65,8 @@
                 </span>
               </template>
             </UFormField>
-            <!-- Auto-create used_prefix option -->
-            <div v-if="selectedParent" class="md:col-span-2">
-              <label class="flex cursor-pointer items-start gap-3">
-                <input v-model="autoCreateUsedPrefix" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-500 focus:ring-primary-500" />
-                <div>
-                  <span class="text-sm font-medium text-gray-200">{{ $t('networks.autoCreateUsedPrefix') }}</span>
-                  <p class="mt-0.5 text-xs text-gray-400">{{ $t('networks.autoCreateUsedPrefixHint') }}</p>
-                </div>
-              </label>
-            </div>
-            
-            <!-- Auto-create used_prefix option for itself -->
-            <div class="md:col-span-2" :class="{ 'mt-4': !selectedParent }">
+            <!-- Mark this subnet as fully utilized -->
+            <div class="md:col-span-2">
               <label class="flex cursor-pointer items-start gap-3">
                 <input v-model="autoCreateUsedPrefixInSelf" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary-500 focus:ring-primary-500" />
                 <div>
@@ -132,11 +121,13 @@ const { items: allNetworks, fetch: fetchNetworks } = useNetworks()
 
 const submitting = ref(false)
 const dnsInput = ref('')
-const autoCreateUsedPrefix = ref(false)
 const autoCreateUsedPrefixInSelf = ref(false)
 
 const suggestPrefix = ref(24)
 const suggestingSubnet = ref(false)
+
+/** True when the currently entered subnet is IPv6. */
+const isIPv6Subnet = computed(() => form.value.subnet.includes(':') || (selectedParent.value?.subnet.includes(':') ?? false))
 
 // Pre-select parent from query param (e.g. ?parent=<networkId>)
 const preselectedParentId = route.query.parent as string | undefined
@@ -145,7 +136,7 @@ const form = ref({
   name: '',
   subnet: '',
   gateway: '',
-  vlan_id: '',
+  vlan_id: '_no_vlan',
   description: '',
   parent_network_id: preselectedParentId || ''
 })
@@ -159,7 +150,9 @@ const dirtyTracker = computed(() => ({ ...form.value, dnsInput: dnsInput.value }
 const { clearDirty } = useUnsavedChanges(dirtyTracker)
 
 const vlanOptions = computed(() => {
-  const options: { label: string; value: string }[] = []
+  const options: { label: string; value: string }[] = [
+    { label: `— ${t('networks.fields.vlan')} —`, value: '_no_vlan' }
+  ]
   vlans.value.forEach((v) => {
     options.push({ label: `VLAN ${v.vlan_id} - ${v.name}`, value: v.id })
   })
@@ -207,8 +200,14 @@ function validate(state: typeof form.value) {
   }
   if (!state.subnet?.trim()) {
     errors.push({ name: 'subnet', message: t('networks.validation.subnetRequired') })
-  } else if (!state.subnet.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/)) {
-    errors.push({ name: 'subnet', message: t('networks.validation.subnetFormat') })
+  } else {
+    const s = state.subnet.trim()
+    const isV6 = s.includes(':')
+    const validV4 = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,3}$/.test(s)
+    const validV6 = isV6 && s.includes('/')
+    if (!validV4 && !validV6) {
+      errors.push({ name: 'subnet', message: t('networks.validation.subnetFormat') })
+    }
   }
   return errors
 }
@@ -231,7 +230,7 @@ async function onSubmit() {
       subnet: form.value.subnet.trim(),
       gateway: form.value.gateway.trim() || undefined,
       dns_servers: parseDns(),
-      vlan_id: form.value.vlan_id || undefined,
+      vlan_id: form.value.vlan_id && form.value.vlan_id !== '_no_vlan' ? form.value.vlan_id : undefined,
       description: form.value.description.trim() || undefined,
       parent_network_id: parentId ?? null
     }
@@ -239,42 +238,6 @@ async function onSubmit() {
       body.site_id = siteId.value
     }
     result = await create(body)
-
-    // Auto-create used_prefix range in parent if requested
-    if (autoCreateUsedPrefix.value && parentId && result) {
-      const newNet = result as Network
-      const startIp = newNet.subnet.split('/')[0]
-      const endIp = computeBroadcast(newNet.subnet)
-      try {
-        // Check if a used_prefix range already exists for this exact block in parent
-        const existingRanges = await $fetch<any[]>(`/api/networks/${parentId}/ranges`)
-        const rangeList = Array.isArray(existingRanges) ? existingRanges : (existingRanges as any)?.data || []
-        const existing = rangeList.find((r: any) =>
-          r.type === 'used_prefix' && r.start_ip === startIp && r.end_ip === endIp
-        )
-        if (!existing) {
-          await $fetch(`/api/networks/${parentId}/ranges`, {
-            method: 'POST',
-            body: {
-              start_ip: startIp,
-              end_ip: endIp,
-              type: 'used_prefix',
-              description: `Delegated to: ${newNet.name} (${newNet.subnet})`
-            }
-          })
-        }
-        // If it already exists, silently skip — range is already marked
-      } catch (pfxErr: unknown) {
-        console.error('[used_prefix] Failed to auto-create range:', pfxErr)
-        const pfxError = pfxErr as { data?: { message?: string; statusMessage?: string }; message?: string }
-        const detail = pfxError?.data?.message || pfxError?.data?.statusMessage || pfxError?.message || 'Unknown error'
-        toast.add({
-          title: t('networks.autoCreateUsedPrefixFailed'),
-          description: detail,
-          color: 'warning'
-        })
-      }
-    }
 
     // Auto-create used_prefix range in itself if requested
     if (autoCreateUsedPrefixInSelf.value && result) {
@@ -315,8 +278,34 @@ async function onSubmit() {
   await router.push(`/sites/${siteId.value}/subnets/${(result as Network).id}`)
 }
 
-/** Compute broadcast address from CIDR string. */
+/** Compute last address from CIDR string. Works for both IPv4 (broadcast) and IPv6 (last address). */
 function computeBroadcast(cidr: string): string {
+  if (cidr.includes(':')) {
+    // IPv6: compute last address using BigInt
+    const [ip, prefixStr] = cidr.split('/') as [string, string]
+    const prefix = Number(prefixStr)
+    const hostBits = 128 - prefix
+    // Expand groups to do BigInt math
+    const expanded = ip.replace(/^\/|\/$/, '')
+    const halves = expanded.split('::')
+    let groups: string[]
+    if (halves.length === 2) {
+      const left = halves[0] ? halves[0].split(':') : []
+      const right = halves[1] ? halves[1].split(':') : []
+      const middle = Array(8 - left.length - right.length).fill('0')
+      groups = [...left, ...middle, ...right]
+    } else {
+      groups = expanded.split(':')
+    }
+    const ipInt = groups.reduce((acc: bigint, g: string) => (acc << 16n) | BigInt(parseInt(g, 16) || 0), 0n)
+    const lastInt = ipInt | ((1n << BigInt(hostBits)) - 1n)
+    // Convert back to compressed IPv6
+    const outGroups: string[] = []
+    let n = lastInt
+    for (let i = 0; i < 8; i++) { outGroups.unshift((n & 0xffffn).toString(16)); n >>= 16n }
+    return outGroups.join(':')
+  }
+  // IPv4
   const [ip, prefixStr] = cidr.split('/') as [string, string]
   const prefix = Number(prefixStr)
   const parts = ip.split('.').map(Number)
