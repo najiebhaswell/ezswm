@@ -9,17 +9,17 @@ import type { LayoutUnit } from '~~/types/layoutTemplate'
 export default defineEventHandler(async (event) => {
   const tokenStr = event.context.params?.token
   if (!tokenStr) {
-    throw createError({ statusCode: 404, message: 'Not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
 
   const tokenRecord = publicTokenRepository.getByToken(tokenStr)
   if (!tokenRecord) {
-    throw createError({ statusCode: 404, message: 'Not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
 
   const sw = switchRepository.getById(tokenRecord.switch_id)
   if (!sw) {
-    throw createError({ statusCode: 404, message: 'Not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
 
   // Update last access

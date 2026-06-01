@@ -33,7 +33,7 @@ export const ipAllocationRepository = {
   create(networkId: string, data: Omit<IPAllocation, 'id' | 'network_id' | 'created_at' | 'updated_at'>): IPAllocation {
     const network = networkRepository.getById(networkId)
     if (!network) {
-      throw createError({ statusCode: 404, message: 'Network not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Network not found' })
     }
 
     const v6 = isV6Subnet(network.subnet)
@@ -41,18 +41,18 @@ export const ipAllocationRepository = {
     // Validate IP address format
     if (v6) {
       if (!isValidIPv6(data.ip_address)) {
-        throw createError({ statusCode: 400, message: 'Invalid IPv6 address' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 address' })
       }
     } else {
       if (!isValidIPv4(data.ip_address)) {
-        throw createError({ statusCode: 400, message: 'Invalid IP address' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid IP address' })
       }
     }
 
     // Validate IP family matches network
     const ipIsV6 = data.ip_address.includes(':')
     if (ipIsV6 !== v6) {
-      throw createError({ statusCode: 400, message: `IP address family (${ipIsV6 ? 'IPv6' : 'IPv4'}) does not match network family (${v6 ? 'IPv6' : 'IPv4'})` })
+      throw createError({ statusCode: 400, statusMessage: `IP address family (${ipIsV6 ? 'IPv6' : 'IPv4'}) does not match network family (${v6 ? 'IPv6' : 'IPv4'})` })
     }
 
     // Validate IP is a usable host address in the subnet
@@ -60,22 +60,22 @@ export const ipAllocationRepository = {
       if (!isUsableHostIPv6(data.ip_address, network.subnet)) {
         const info = parseIPv6Subnet(network.subnet)
         if (!isIPv6InSubnet(data.ip_address, network.subnet)) {
-          throw createError({ statusCode: 400, message: ipv6SubnetRangeError(data.ip_address, network.subnet) })
+          throw createError({ statusCode: 400, statusMessage: ipv6SubnetRangeError(data.ip_address, network.subnet) })
         }
-        throw createError({ statusCode: 400, message: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'last'} address of ${network.subnet}. Valid range: ${info.first_usable} – ${info.last_usable}` })
+        throw createError({ statusCode: 400, statusMessage: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'last'} address of ${network.subnet}. Valid range: ${info.first_usable} – ${info.last_usable}` })
       }
     } else {
       if (!isUsableHostIP(data.ip_address, network.subnet)) {
         const info = parseSubnet(network.subnet)
         if (!isIPInSubnet(data.ip_address, network.subnet)) {
-          throw createError({ statusCode: 400, message: subnetRangeError(data.ip_address, network.subnet) })
+          throw createError({ statusCode: 400, statusMessage: subnetRangeError(data.ip_address, network.subnet) })
         }
-        throw createError({ statusCode: 400, message: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'broadcast'} address of ${network.subnet}. Valid range: ${info.first_usable} - ${info.last_usable}` })
+        throw createError({ statusCode: 400, statusMessage: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'broadcast'} address of ${network.subnet}. Valid range: ${info.first_usable} - ${info.last_usable}` })
       }
     }
 
     if (data.mac_address && !isValidMacAddress(data.mac_address)) {
-      throw createError({ statusCode: 400, message: 'Invalid MAC address format (expected XX:XX:XX:XX:XX:XX)' })
+      throw createError({ statusCode: 400, statusMessage: 'Invalid MAC address format (expected XX:XX:XX:XX:XX:XX)' })
     }
 
     // Check if IP falls inside a DHCP dynamic range
@@ -89,7 +89,7 @@ export const ipAllocationRepository = {
           const s = ipv6ToBigInt(range.start_ip)
           const e = ipv6ToBigInt(range.end_ip)
           if (ipInt >= s && ipInt <= e) {
-            throw createError({ statusCode: 400, message: `IP ${data.ip_address} is inside a DHCP dynamic range (${range.start_ip} - ${range.end_ip}). Static IPs cannot be assigned within dynamic DHCP ranges.` })
+            throw createError({ statusCode: 400, statusMessage: `IP ${data.ip_address} is inside a DHCP dynamic range (${range.start_ip} - ${range.end_ip}). Static IPs cannot be assigned within dynamic DHCP ranges.` })
           }
         }
       }
@@ -97,7 +97,7 @@ export const ipAllocationRepository = {
       const ipLong = ipToLong(data.ip_address)
       for (const range of networkRanges) {
         if (range.type === 'dhcp' && ipLong >= ipToLong(range.start_ip) && ipLong <= ipToLong(range.end_ip)) {
-          throw createError({ statusCode: 400, message: `IP ${data.ip_address} is inside a DHCP dynamic range (${range.start_ip} - ${range.end_ip}). Static IPs cannot be assigned within dynamic DHCP ranges.` })
+          throw createError({ statusCode: 400, statusMessage: `IP ${data.ip_address} is inside a DHCP dynamic range (${range.start_ip} - ${range.end_ip}). Static IPs cannot be assigned within dynamic DHCP ranges.` })
         }
       }
     }
@@ -109,14 +109,14 @@ export const ipAllocationRepository = {
         ? isIPv6InSubnet(data.ip_address, child.subnet)
         : isIPInSubnet(data.ip_address, child.subnet)
       if (inChild) {
-        throw createError({ statusCode: 409, message: `IP ${data.ip_address} belongs to child subnet ${child.subnet} (${child.name}). Manage it from the child network instead.` })
+        throw createError({ statusCode: 409, statusMessage: `IP ${data.ip_address} belongs to child subnet ${child.subnet} (${child.name}). Manage it from the child network instead.` })
       }
     }
 
     // Global IP uniqueness
     const allAllocations = readJson<IPAllocation[]>(FILE_NAME)
     if (allAllocations.some(a => a.ip_address === data.ip_address)) {
-      throw createError({ statusCode: 409, message: `IP address ${data.ip_address} is already allocated` })
+      throw createError({ statusCode: 409, statusMessage: `IP address ${data.ip_address} is already allocated` })
     }
 
     const now = new Date().toISOString()
@@ -137,7 +137,7 @@ export const ipAllocationRepository = {
     const allocations = readJson<IPAllocation[]>(FILE_NAME)
     const index = allocations.findIndex(a => a.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'IP allocation not found' })
+      throw createError({ statusCode: 404, statusMessage: 'IP allocation not found' })
     }
 
     if (data.ip_address && data.ip_address !== allocations[index]!.ip_address) {
@@ -146,35 +146,35 @@ export const ipAllocationRepository = {
 
       if (v6) {
         if (!isValidIPv6(data.ip_address)) {
-          throw createError({ statusCode: 400, message: 'Invalid IPv6 address' })
+          throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 address' })
         }
         if (network && !isUsableHostIPv6(data.ip_address, network.subnet)) {
           const info = parseIPv6Subnet(network.subnet)
           if (!isIPv6InSubnet(data.ip_address, network.subnet)) {
-            throw createError({ statusCode: 400, message: ipv6SubnetRangeError(data.ip_address, network.subnet) })
+            throw createError({ statusCode: 400, statusMessage: ipv6SubnetRangeError(data.ip_address, network.subnet) })
           }
-          throw createError({ statusCode: 400, message: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'last'} address of ${network.subnet}. Valid range: ${info.first_usable} – ${info.last_usable}` })
+          throw createError({ statusCode: 400, statusMessage: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'last'} address of ${network.subnet}. Valid range: ${info.first_usable} – ${info.last_usable}` })
         }
       } else {
         if (!isValidIPv4(data.ip_address)) {
-          throw createError({ statusCode: 400, message: 'Invalid IP address' })
+          throw createError({ statusCode: 400, statusMessage: 'Invalid IP address' })
         }
         if (network && !isUsableHostIP(data.ip_address, network.subnet)) {
           const info = parseSubnet(network.subnet)
           if (!isIPInSubnet(data.ip_address, network.subnet)) {
-            throw createError({ statusCode: 400, message: subnetRangeError(data.ip_address, network.subnet) })
+            throw createError({ statusCode: 400, statusMessage: subnetRangeError(data.ip_address, network.subnet) })
           }
-          throw createError({ statusCode: 400, message: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'broadcast'} address of ${network.subnet}. Valid range: ${info.first_usable} - ${info.last_usable}` })
+          throw createError({ statusCode: 400, statusMessage: `IP ${data.ip_address} is the ${data.ip_address === info.network_address ? 'network' : 'broadcast'} address of ${network.subnet}. Valid range: ${info.first_usable} - ${info.last_usable}` })
         }
       }
 
       if (allocations.some(a => a.ip_address === data.ip_address && a.id !== id)) {
-        throw createError({ statusCode: 409, message: `IP address ${data.ip_address} is already allocated` })
+        throw createError({ statusCode: 409, statusMessage: `IP address ${data.ip_address} is already allocated` })
       }
     }
 
     if (data.mac_address && !isValidMacAddress(data.mac_address)) {
-      throw createError({ statusCode: 400, message: 'Invalid MAC address format' })
+      throw createError({ statusCode: 400, statusMessage: 'Invalid MAC address format' })
     }
 
     allocations[index] = {

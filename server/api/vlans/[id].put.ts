@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const updated = vlanRepository.update(id, parsed as Partial<Omit<VLAN, 'id' | 'created_at'>>)
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'update',
     entity_type: 'vlan',

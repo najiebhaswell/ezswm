@@ -18,11 +18,11 @@ async function fetchChangelog(): Promise<ChangelogResponse> {
       headers: { 'User-Agent': 'ezSWM', Accept: 'application/vnd.github+json' }
     })
   } catch {
-    throw createError({ statusCode: 503, message: 'Changelog unavailable — no internet connection' })
+    throw createError({ statusCode: 503, statusMessage: 'Changelog unavailable — no internet connection' })
   }
 
   if (!response.ok) {
-    throw createError({ statusCode: 503, message: 'Changelog unavailable — no internet connection' })
+    throw createError({ statusCode: 503, statusMessage: 'Changelog unavailable — no internet connection' })
   }
 
   const raw = (await response.json()) as GithubRelease[]

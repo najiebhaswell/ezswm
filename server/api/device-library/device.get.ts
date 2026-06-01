@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const { manufacturer, slug } = getQuery(event) as { manufacturer?: string; slug?: string }
 
   if (!manufacturer || !slug) {
-    throw createError({ statusCode: 400, message: 'manufacturer and slug are required' })
+    throw createError({ statusCode: 400, statusMessage: 'manufacturer and slug are required' })
   }
 
   const url = `https://raw.githubusercontent.com/netbox-community/devicetype-library/master/device-types/${encodeURIComponent(manufacturer)}/${encodeURIComponent(slug)}.yaml`
@@ -18,14 +18,14 @@ export default defineEventHandler(async (event) => {
       headers: { 'User-Agent': 'ezSWM' }
     })
   } catch {
-    throw createError({ statusCode: 503, message: 'Device library unavailable — no internet connection' })
+    throw createError({ statusCode: 503, statusMessage: 'Device library unavailable — no internet connection' })
   }
 
   if (!response.ok) {
     if (response.status === 404) {
-      throw createError({ statusCode: 404, message: `Device ${manufacturer}/${slug} not found` })
+      throw createError({ statusCode: 404, statusMessage: `Device ${manufacturer}/${slug} not found` })
     }
-    throw createError({ statusCode: 503, message: 'Device library unavailable' })
+    throw createError({ statusCode: 503, statusMessage: 'Device library unavailable' })
   }
 
   const yamlText = await response.text()
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   try {
     device = parseYaml(yamlText) as NetboxDevice
   } catch {
-    throw createError({ statusCode: 422, message: 'Could not parse device definition' })
+    throw createError({ statusCode: 422, statusMessage: 'Could not parse device definition' })
   }
 
   const { template, skippedInterfaces } = convertNetboxToTemplate(device)

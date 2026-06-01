@@ -7,13 +7,13 @@ export default defineEventHandler(async (event) => {
   const id = event.context.params?.id
 
   if (!id) {
-    throw createError({ statusCode: 400, message: 'Template ID is required' })
+    throw createError({ statusCode: 400, statusMessage: 'Template ID is required' })
   }
 
   const existing = layoutTemplateRepository.getById(id)
 
   if (!existing) {
-    throw createError({ statusCode: 404, message: 'Layout template not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Layout template not found' })
   }
 
   const body = await readBody(event)
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const updated = layoutTemplateRepository.update(id, validated as Partial<Omit<LayoutTemplate, 'id' | 'created_at'>>)
 
-  activityRepository.log({
+  await activityRepository.log({
     entity_type: 'layout_template',
     entity_id: id,
     action: 'update',

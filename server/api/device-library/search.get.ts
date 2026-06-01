@@ -24,7 +24,7 @@ async function fetchDeviceTree(): Promise<TreeEntry[]> {
   })
 
   if (!response.ok) {
-    throw createError({ statusCode: 503, message: 'Device library unavailable — no internet connection' })
+    throw createError({ statusCode: 503, statusMessage: 'Device library unavailable — no internet connection' })
   }
 
   const json = await response.json() as { tree: TreeEntry[] }
@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     tree = await fetchDeviceTree()
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'statusCode' in e && (e as { statusCode: number }).statusCode === 503) throw e
-    throw createError({ statusCode: 503, message: 'Device library unavailable — no internet connection' })
+    throw createError({ statusCode: 503, statusMessage: 'Device library unavailable — no internet connection' })
   }
 
   const query = q.toLowerCase().trim()

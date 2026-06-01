@@ -4,12 +4,12 @@ import { switchRepository } from '../../../../repositories/switchRepository'
 export default defineEventHandler(async (event) => {
   const switchId = event.context.params?.id
   if (!switchId) {
-    throw createError({ statusCode: 400, message: 'Missing switch ID' })
+    throw createError({ statusCode: 400, statusMessage: 'Missing switch ID' })
   }
 
   const sw = switchRepository.getById(switchId)
   if (!sw) {
-    throw createError({ statusCode: 404, message: 'Switch not found' })
+    throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
   }
 
   const token = publicTokenRepository.create(switchId)

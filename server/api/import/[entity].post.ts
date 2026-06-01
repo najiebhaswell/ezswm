@@ -12,16 +12,16 @@ const ENTITY_FILE_MAP: Record<string, string> = {
 export default defineEventHandler(async (event) => {
   const entity = event.context.params?.entity
   if (!entity || !ENTITY_FILE_MAP[entity]) {
-    throw createError({ statusCode: 400, message: `Unknown entity: ${entity}` })
+    throw createError({ statusCode: 400, statusMessage: `Unknown entity: ${entity}` })
   }
 
   const body = await readBody(event)
   if (!Array.isArray(body)) {
-    throw createError({ statusCode: 400, message: 'Request body must be a JSON array' })
+    throw createError({ statusCode: 400, statusMessage: 'Request body must be a JSON array' })
   }
 
   if (body.length > 5000) {
-    throw createError({ statusCode: 400, message: 'Maximum 5000 rows allowed' })
+    throw createError({ statusCode: 400, statusMessage: 'Maximum 5000 rows allowed' })
   }
 
   const fileName = ENTITY_FILE_MAP[entity]

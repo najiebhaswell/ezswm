@@ -5,7 +5,7 @@ import { createLagGroupSchema } from '../../../../validators/lagGroupSchemas'
 
 export default defineEventHandler(async (event) => {
   const switchId = event.context.params?.id
-  if (!switchId) throw createError({ statusCode: 400, message: 'Switch ID required' })
+  if (!switchId) throw createError({ statusCode: 400, statusMessage: 'Switch ID required' })
 
   const body = await readBody(event)
   const validated = createLagGroupSchema.parse(body)
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     .map(pid => sw?.ports.find(p => p.id === pid)?.label || pid)
     .slice(0, 10)
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'create',
     entity_type: 'lag_group',

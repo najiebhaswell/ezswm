@@ -127,7 +127,7 @@ export const layoutTemplateRepository = {
     const templates = this.list()
 
     if (templates.some(t => t.name === data.name)) {
-      throw createError({ statusCode: 409, message: `Template name '${data.name}' already exists` })
+      throw createError({ statusCode: 409, statusMessage: `Template name '${data.name}' already exists` })
     }
 
     // Assign IDs to blocks
@@ -157,12 +157,12 @@ export const layoutTemplateRepository = {
     const templates = this.list()
     const index = templates.findIndex(t => t.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'Layout template not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Layout template not found' })
     }
 
     if (data.name && data.name !== templates[index]!.name) {
       if (templates.some(t => t.name === data.name)) {
-        throw createError({ statusCode: 409, message: `Template name '${data.name}' already exists` })
+        throw createError({ statusCode: 409, statusMessage: `Template name '${data.name}' already exists` })
       }
     }
 
@@ -195,7 +195,7 @@ export const layoutTemplateRepository = {
   duplicate(id: string): LayoutTemplate {
     const original = this.getById(id)
     if (!original) {
-      throw createError({ statusCode: 404, message: 'Layout template not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Layout template not found' })
     }
 
     const templates = this.list()

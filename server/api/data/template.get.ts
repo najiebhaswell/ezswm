@@ -13,7 +13,7 @@ export default defineEventHandler((event) => {
   const type = query.type as EntityType
 
   if (!type || !CSV_TEMPLATES[type]) {
-    throw createError({ statusCode: 400, message: 'Invalid entity type. Must be one of: switches, vlans, networks, allocations, templates' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid entity type. Must be one of: switches, vlans, networks, allocations, templates' })
   }
 
   const csv = CSV_TEMPLATES[type]

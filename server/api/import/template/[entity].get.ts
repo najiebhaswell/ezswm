@@ -8,7 +8,7 @@ const TEMPLATES: Record<string, Record<string, unknown>[]> = {
 export default defineEventHandler((event) => {
   const entity = event.context.params?.entity
   if (!entity || !TEMPLATES[entity]) {
-    throw createError({ statusCode: 400, message: `Unknown entity: ${entity}. Valid: ${Object.keys(TEMPLATES).join(', ')}` })
+    throw createError({ statusCode: 400, statusMessage: `Unknown entity: ${entity}. Valid: ${Object.keys(TEMPLATES).join(', ')}` })
   }
 
   setHeader(event, 'Content-Type', 'application/json')

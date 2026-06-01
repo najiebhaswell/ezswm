@@ -117,12 +117,12 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   if (!body || !body.type || !Array.isArray(body.data)) {
-    throw createError({ statusCode: 400, message: 'Request body must include "type" and "data" array' })
+    throw createError({ statusCode: 400, statusMessage: 'Request body must include "type" and "data" array' })
   }
 
   const type = body.type as EntityType
   if (!ENTITY_FILE_MAP[type]) {
-    throw createError({ statusCode: 400, message: 'Invalid entity type. Must be one of: switches, vlans, networks, allocations, ranges, templates' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid entity type. Must be one of: switches, vlans, networks, allocations, ranges, templates' })
   }
 
   const existing = readJson<Record<string, unknown>[]>(ENTITY_FILE_MAP[type])

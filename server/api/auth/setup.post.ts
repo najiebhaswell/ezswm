@@ -6,7 +6,7 @@ import { hashPassword, signToken, setAuthCookie } from '../../utils/auth'
 export default defineEventHandler(async (event) => {
   const settings = settingsRepository.get()
   if (settings.setup_completed) {
-    throw createError({ statusCode: 403, message: 'Setup has already been completed' })
+    throw createError({ statusCode: 403, statusMessage: 'Setup has already been completed' })
   }
 
   const body = await readBody(event)

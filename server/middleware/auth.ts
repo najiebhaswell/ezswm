@@ -29,7 +29,7 @@ export default defineEventHandler((event) => {
 
   const token = getTokenFromEvent(event)
   if (!token) {
-    throw createError({ statusCode: 401, message: 'Authentication required' })
+    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
   }
 
   try {
@@ -40,6 +40,6 @@ export default defineEventHandler((event) => {
       role: payload.role
     }
   } catch {
-    throw createError({ statusCode: 401, message: 'Invalid or expired token' })
+    throw createError({ statusCode: 401, statusMessage: 'Invalid or expired token' })
   }
 })

@@ -3,12 +3,12 @@ import { publicTokenRepository } from '../../../../repositories/publicTokenRepos
 export default defineEventHandler(async (event) => {
   const switchId = event.context.params?.id
   if (!switchId) {
-    throw createError({ statusCode: 400, message: 'Missing switch ID' })
+    throw createError({ statusCode: 400, statusMessage: 'Missing switch ID' })
   }
 
   const token = publicTokenRepository.getLatestBySwitchId(switchId)
   if (!token) {
-    throw createError({ statusCode: 404, message: 'No public token found' })
+    throw createError({ statusCode: 404, statusMessage: 'No public token found' })
   }
 
   return token

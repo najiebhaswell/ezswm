@@ -6,9 +6,12 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const parsed = createNetworkSchema.parse(body)
 
-  const created = networkRepository.create(parsed)
+  const created = networkRepository.create({
+    ...parsed,
+    parent_network_id: parsed.parent_network_id ?? undefined,
+  })
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'create',
     entity_type: 'network',

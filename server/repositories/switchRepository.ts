@@ -150,7 +150,7 @@ export const switchRepository = {
 
     const siteSwitches = switches.filter(s => s.site_id === data.site_id)
     if (siteSwitches.some(s => s.name === data.name)) {
-      throw createError({ statusCode: 409, message: `Switch name '${data.name}' already exists in this site` })
+      throw createError({ statusCode: 409, statusMessage: `Switch name '${data.name}' already exists in this site` })
     }
 
     const ports = data.layout_template_id
@@ -183,7 +183,7 @@ export const switchRepository = {
     const switches = this.list()
     const index = switches.findIndex(s => s.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'Switch not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
     }
 
     const current = switches[index]!
@@ -191,7 +191,7 @@ export const switchRepository = {
     if (data.name && data.name !== current.name) {
       const siteId = current.site_id
       if (switches.some(s => s.site_id === siteId && s.name === data.name)) {
-        throw createError({ statusCode: 409, message: `Switch name '${data.name}' already exists in this site` })
+        throw createError({ statusCode: 409, statusMessage: `Switch name '${data.name}' already exists in this site` })
       }
     }
 
@@ -235,13 +235,13 @@ export const switchRepository = {
     const switches = this.list()
     const swIndex = switches.findIndex(s => s.id === switchId)
     if (swIndex === -1) {
-      throw createError({ statusCode: 404, message: 'Switch not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
     }
 
     const sw = switches[swIndex]!
     const portIndex = sw.ports.findIndex(p => p.id === portId)
     if (portIndex === -1) {
-      throw createError({ statusCode: 404, message: 'Port not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Port not found' })
     }
 
     const oldPort = sw.ports[portIndex]!
@@ -279,11 +279,11 @@ export const switchRepository = {
     return updatedPort
   },
 
-  bulkUpdatePorts(switchId: string, portIds: string[], updates: Partial<Omit<Port, 'id' | 'unit' | 'index'>>): Port[] {
+  bulkUpdatePorts(switchId: string, portIds: string[], updates: Partial<Omit<Port, 'id' | 'unit' | 'index'>>, vlansToAdd: number[] = []): Port[] {
     const switches = this.list()
     const swIndex = switches.findIndex(s => s.id === switchId)
     if (swIndex === -1) {
-      throw createError({ statusCode: 404, message: 'Switch not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
     }
 
     const sw = switches[swIndex]!
@@ -297,6 +297,10 @@ export const switchRepository = {
         } as Port
         updatedPorts.push(sw.ports[portIndex]!)
       }
+    }
+
+    if (vlansToAdd.length > 0) {
+      sw.configured_vlans = normalizeConfiguredVlans([...(sw.configured_vlans || []), ...vlansToAdd])
     }
 
     sw.updated_at = new Date().toISOString()
@@ -473,7 +477,7 @@ export const switchRepository = {
   duplicate(id: string): Switch {
     const original = this.getById(id)
     if (!original) {
-      throw createError({ statusCode: 404, message: 'Switch not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
     }
 
     const switches = this.list()
@@ -529,6 +533,24 @@ export const switchRepository = {
     switches.splice(index, 1)
     writeJson(FILE_NAME, switches)
     return true
+  },
+
+  clearAllocationReferences(allocationIds: string[]): void {
+    if (allocationIds.length === 0) return
+    const idSet = new Set(allocationIds)
+    const switches = readJson<Switch[]>(FILE_NAME)
+    let changed = false
+    for (const sw of switches) {
+      for (const port of sw.ports) {
+        if (port.connected_allocation_id && idSet.has(port.connected_allocation_id)) {
+          port.connected_allocation_id = undefined
+          changed = true
+        }
+      }
+    }
+    if (changed) {
+      writeJson(FILE_NAME, switches)
+    }
   },
 
   _removeRemoteLink(switches: Switch[], remoteSwitchId: string, remotePortId: string): void {

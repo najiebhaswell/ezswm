@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
 
   ipAllocationRepository.delete(allocId)
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'delete',
     entity_type: 'ip_allocation',

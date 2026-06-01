@@ -10,7 +10,7 @@ import { activityRepository } from '../../repositories/activityRepository'
 export default defineEventHandler(async (event) => {
   const settings = settingsRepository.get()
   if (settings.sites_initialized) {
-    throw createError({ statusCode: 403, message: 'Initial site has already been created' })
+    throw createError({ statusCode: 403, statusMessage: 'Initial site has already been created' })
   }
 
   const body = await readBody(event)

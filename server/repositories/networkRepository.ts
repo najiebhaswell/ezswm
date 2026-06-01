@@ -24,13 +24,13 @@ function validateGateway(gateway: string, subnet: string): void {
   const gwIsV6 = gateway.includes(':')
   const subnetIsV6 = isV6Subnet(subnet)
   if (gwIsV6 !== subnetIsV6) {
-    throw createError({ statusCode: 400, message: `Gateway address family (${gwIsV6 ? 'IPv6' : 'IPv4'}) does not match subnet family (${subnetIsV6 ? 'IPv6' : 'IPv4'})` })
+    throw createError({ statusCode: 400, statusMessage: `Gateway address family (${gwIsV6 ? 'IPv6' : 'IPv4'}) does not match subnet family (${subnetIsV6 ? 'IPv6' : 'IPv4'})` })
   }
   if (gwIsV6 && !isValidIPv6(gateway)) {
-    throw createError({ statusCode: 400, message: 'Invalid IPv6 gateway address' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 gateway address' })
   }
   if (!gwIsV6 && !isValidIPv4(gateway)) {
-    throw createError({ statusCode: 400, message: 'Invalid IPv4 gateway address' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid IPv4 gateway address' })
   }
 }
 
@@ -38,11 +38,11 @@ function validateGateway(gateway: string, subnet: string): void {
 function validateGatewayInSubnet(gateway: string, subnet: string): void {
   if (isV6Subnet(subnet)) {
     if (!isIPv6InSubnet(gateway, subnet)) {
-      throw createError({ statusCode: 400, message: 'Gateway is not within the subnet' })
+      throw createError({ statusCode: 400, statusMessage: 'Gateway is not within the subnet' })
     }
   } else {
     if (!isIPInSubnet(gateway, subnet)) {
-      throw createError({ statusCode: 400, message: 'Gateway is not within the subnet' })
+      throw createError({ statusCode: 400, statusMessage: 'Gateway is not within the subnet' })
     }
   }
 }
@@ -81,7 +81,7 @@ export const networkRepository = {
 
     // Validate subnet CIDR
     if (v6 ? !isValidIPv6CIDR(data.subnet) : !isValidCIDR(data.subnet)) {
-      throw createError({ statusCode: 400, message: 'Invalid CIDR notation' })
+      throw createError({ statusCode: 400, statusMessage: 'Invalid CIDR notation' })
     }
 
     // Validate gateway
@@ -93,7 +93,7 @@ export const networkRepository = {
     // Validate DNS servers — each must be valid IPv4 or IPv6
     for (const dns of data.dns_servers) {
       if (!isValidIp(dns)) {
-        throw createError({ statusCode: 400, message: `Invalid DNS server address: ${dns}` })
+        throw createError({ statusCode: 400, statusMessage: `Invalid DNS server address: ${dns}` })
       }
     }
 
@@ -103,20 +103,20 @@ export const networkRepository = {
     if (data.parent_network_id) {
       const parent = networks.find(n => n.id === data.parent_network_id)
       if (!parent) {
-        throw createError({ statusCode: 404, message: 'Parent network not found' })
+        throw createError({ statusCode: 404, statusMessage: 'Parent network not found' })
       }
       if (parent.site_id !== data.site_id) {
-        throw createError({ statusCode: 400, message: 'Child network must belong to the same site as the parent' })
+        throw createError({ statusCode: 400, statusMessage: 'Child network must belong to the same site as the parent' })
       }
       // Families must match
       if (isV6Subnet(parent.subnet) !== v6) {
-        throw createError({ statusCode: 400, message: 'Child subnet address family must match the parent network' })
+        throw createError({ statusCode: 400, statusMessage: 'Child subnet address family must match the parent network' })
       }
       const contained = v6
         ? isIPv6SubnetContainedIn(data.subnet, parent.subnet)
         : isSubnetContainedIn(data.subnet, parent.subnet)
       if (!contained) {
-        throw createError({ statusCode: 400, message: `Subnet ${data.subnet} is not contained within parent ${parent.subnet}` })
+        throw createError({ statusCode: 400, statusMessage: `Subnet ${data.subnet} is not contained within parent ${parent.subnet}` })
       }
       // Check overlap with existing siblings
       const siblings = networks.filter(n => n.parent_network_id === data.parent_network_id)
@@ -125,7 +125,7 @@ export const networkRepository = {
           ? doIPv6CidrsOverlap(data.subnet, sibling.subnet)
           : doCidrsOverlap(data.subnet, sibling.subnet)
         if (overlaps) {
-          throw createError({ statusCode: 409, message: `Subnet ${data.subnet} overlaps with existing sibling subnet ${sibling.subnet} (${sibling.name})` })
+          throw createError({ statusCode: 409, statusMessage: `Subnet ${data.subnet} overlaps with existing sibling subnet ${sibling.subnet} (${sibling.name})` })
         }
       }
     }
@@ -148,7 +148,7 @@ export const networkRepository = {
     const networks = this.list()
     const index = networks.findIndex(n => n.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'Network not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Network not found' })
     }
 
     const current = networks[index]!
@@ -159,7 +159,7 @@ export const networkRepository = {
     // Validate subnet CIDR if changed
     if (data.subnet) {
       if (v6 ? !isValidIPv6CIDR(data.subnet) : !isValidCIDR(data.subnet)) {
-        throw createError({ statusCode: 400, message: 'Invalid CIDR notation' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid CIDR notation' })
       }
     }
 
@@ -173,7 +173,7 @@ export const networkRepository = {
     if (data.dns_servers) {
       for (const dns of data.dns_servers) {
         if (!isValidIp(dns)) {
-          throw createError({ statusCode: 400, message: `Invalid DNS server address: ${dns}` })
+          throw createError({ statusCode: 400, statusMessage: `Invalid DNS server address: ${dns}` })
         }
       }
     }
@@ -186,28 +186,28 @@ export const networkRepository = {
     if (newParentId) {
       // Cannot make a network its own parent
       if (newParentId === id) {
-        throw createError({ statusCode: 400, message: 'A network cannot be its own parent' })
+        throw createError({ statusCode: 400, statusMessage: 'A network cannot be its own parent' })
       }
       const parent = networks.find(n => n.id === newParentId)
       if (!parent) {
-        throw createError({ statusCode: 404, message: 'Parent network not found' })
+        throw createError({ statusCode: 404, statusMessage: 'Parent network not found' })
       }
       if (parent.site_id !== siteId) {
-        throw createError({ statusCode: 400, message: 'Child network must belong to the same site as the parent' })
+        throw createError({ statusCode: 400, statusMessage: 'Child network must belong to the same site as the parent' })
       }
       if (isV6Subnet(parent.subnet) !== v6) {
-        throw createError({ statusCode: 400, message: 'Child subnet address family must match the parent network' })
+        throw createError({ statusCode: 400, statusMessage: 'Child subnet address family must match the parent network' })
       }
       const contained = v6
         ? isIPv6SubnetContainedIn(subnet, parent.subnet)
         : isSubnetContainedIn(subnet, parent.subnet)
       if (!contained) {
-        throw createError({ statusCode: 400, message: `Subnet ${subnet} is not contained within parent ${parent.subnet}` })
+        throw createError({ statusCode: 400, statusMessage: `Subnet ${subnet} is not contained within parent ${parent.subnet}` })
       }
       // Prevent circular reference
       const descendants = this._getDescendantIds(id, networks)
       if (descendants.has(newParentId)) {
-        throw createError({ statusCode: 400, message: 'Cannot set a descendant network as parent (circular reference)' })
+        throw createError({ statusCode: 400, statusMessage: 'Cannot set a descendant network as parent (circular reference)' })
       }
       // Check overlap with siblings (excluding self)
       const siblings = networks.filter(n => n.parent_network_id === newParentId && n.id !== id)
@@ -216,7 +216,7 @@ export const networkRepository = {
           ? doIPv6CidrsOverlap(subnet, sibling.subnet)
           : doCidrsOverlap(subnet, sibling.subnet)
         if (overlaps) {
-          throw createError({ statusCode: 409, message: `Subnet ${subnet} overlaps with existing sibling subnet ${sibling.subnet} (${sibling.name})` })
+          throw createError({ statusCode: 409, statusMessage: `Subnet ${subnet} overlaps with existing sibling subnet ${sibling.subnet} (${sibling.name})` })
         }
       }
     }
@@ -241,7 +241,7 @@ export const networkRepository = {
     if (children.length > 0) {
       throw createError({
         statusCode: 409,
-        message: `Cannot delete: this network has ${children.length} child subnet(s). Delete them first.`
+        statusMessage: `Cannot delete: this network has ${children.length} child subnet(s). Delete them first.`
       })
     }
 

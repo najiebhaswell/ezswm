@@ -43,11 +43,11 @@ export default defineEventHandler((event) => {
   const format = (query.format as ExportFormat) || 'json'
 
   if (!type || !ENTITY_FILE_MAP[type]) {
-    throw createError({ statusCode: 400, message: 'Invalid entity type. Must be one of: switches, vlans, networks, allocations, templates' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid entity type. Must be one of: switches, vlans, networks, allocations, templates' })
   }
 
   if (format !== 'json' && format !== 'csv') {
-    throw createError({ statusCode: 400, message: 'Invalid format. Must be json or csv' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid format. Must be json or csv' })
   }
 
   let data = readJson<Record<string, unknown>[]>(ENTITY_FILE_MAP[type])

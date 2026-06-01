@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const updated = ipAllocationRepository.update(allocId, parsed as Partial<Omit<IPAllocation, 'id' | 'created_at' | 'network_id'>>)
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'update',
     entity_type: 'ip_allocation',

@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import type { NetworkTreeNode } from '~~/app/pages/sites/[siteId]/subnets/index.vue'
 import type { Network } from '~~/types/network'
-import type { Vlan } from '~~/types/vlan'
+import type { VLAN } from '~~/types/vlan'
 
 const props = defineProps<{
   node: NetworkTreeNode
@@ -116,7 +116,7 @@ const props = defineProps<{
   isLast: boolean
   isFirst?: boolean
   siteId: string
-  getVlan: (vlanId: string | undefined) => Vlan | null
+  getVlan: (vlanId: string | undefined) => VLAN | null
 }>()
 
 const emit = defineEmits<{

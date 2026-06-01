@@ -15,7 +15,7 @@ function subnetSizeBigInt(cidr: string): bigint {
     return 1n << BigInt(hostBits)
   }
   const [, prefixStr] = cidr.split('/') as [string, string]
-  return BigInt(1 << (32 - Number(prefixStr)))
+  return BigInt(2 ** (32 - Number(prefixStr)))
 }
 
 export default defineEventHandler(async (event) => {
@@ -101,7 +101,7 @@ export default defineEventHandler(async (event) => {
     if (!child.subnet.includes(':')) {
       try {
         const [, prefixStr] = child.subnet.split('/') as [string, string]
-        childUsedIps += 1 << (32 - Number(prefixStr))
+        childUsedIps += 2 ** (32 - Number(prefixStr))
       } catch { /* skip */ }
     }
   }

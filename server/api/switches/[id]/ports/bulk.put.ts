@@ -69,17 +69,8 @@ export default defineEventHandler(async (event) => {
   // Normalize null → undefined for clearable helper fields
   if (parsed.updates.helper_usage === null) parsed.updates.helper_usage = undefined
 
-  // All validation passed — single atomic write
-  const updatedPorts = switchRepository.bulkUpdatePorts(switchId, parsed.port_ids, parsed.updates as Partial<Omit<Port, 'id' | 'unit' | 'index'>>)
-
-  // If override, also update configured_vlans
-  if (vlansToAdd.length > 0) {
-    const currentSw = switchRepository.getById(switchId)!
-    const merged = [...new Set([...(currentSw.configured_vlans || []), ...vlansToAdd])]
-      .filter(v => v >= 1 && v <= 4094)
-      .sort((a, b) => a - b)
-    switchRepository.update(switchId, { configured_vlans: merged } as Partial<import('~~/types').Switch>)
-  }
+  // All validation passed — single atomic write (ports + configured_vlans together)
+  const updatedPorts = switchRepository.bulkUpdatePorts(switchId, parsed.port_ids, parsed.updates as Partial<Omit<Port, 'id' | 'unit' | 'index'>>, vlansToAdd)
 
   const updatedSw = switchRepository.getById(switchId)!
 

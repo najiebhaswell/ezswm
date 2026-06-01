@@ -6,17 +6,17 @@ import type { LAGGroup } from '../../../../../types/lagGroup'
 
 export default defineEventHandler(async (event) => {
   const switchId = event.context.params?.id
-  if (!switchId) throw createError({ statusCode: 400, message: 'Switch ID required' })
+  if (!switchId) throw createError({ statusCode: 400, statusMessage: 'Switch ID required' })
 
   const lagId = event.context.params?.lagId
-  if (!lagId) throw createError({ statusCode: 400, message: 'LAG group ID required' })
+  if (!lagId) throw createError({ statusCode: 400, statusMessage: 'LAG group ID required' })
 
   const body = await readBody(event)
   const validated = updateLagGroupSchema.parse(body)
 
   // Get current state before update for diff
   const before = lagGroupRepository.getById(lagId)
-  if (!before) throw createError({ statusCode: 404, message: 'LAG group not found' })
+  if (!before) throw createError({ statusCode: 404, statusMessage: 'LAG group not found' })
 
   const updated = lagGroupRepository.update(lagId, validated as Partial<Omit<LAGGroup, 'id' | 'switch_id' | 'created_at'>>)
 
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     metadata.before_remote_device = before.remote_device || null
   }
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'update',
     entity_type: 'lag_group',

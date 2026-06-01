@@ -8,12 +8,12 @@ export default defineEventHandler(async (event) => {
 
   const user = userRepository.getByUsername(validated.username)
   if (!user) {
-    throw createError({ statusCode: 401, message: 'Invalid username or password' })
+    throw createError({ statusCode: 401, statusMessage: 'Invalid username or password' })
   }
 
   const valid = await verifyPassword(validated.password, user.password_hash)
   if (!valid) {
-    throw createError({ statusCode: 401, message: 'Invalid username or password' })
+    throw createError({ statusCode: 401, statusMessage: 'Invalid username or password' })
   }
 
   const token = signToken(

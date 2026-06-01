@@ -6,18 +6,18 @@ export default defineEventHandler((event) => {
   const networkId = event.context.params?.id
   const allocId = event.context.params?.allocId
 
-  if (!networkId) throw createError({ statusCode: 400, message: 'Network ID required' })
-  if (!allocId) throw createError({ statusCode: 400, message: 'Allocation ID required' })
+  if (!networkId) throw createError({ statusCode: 400, statusMessage: 'Network ID required' })
+  if (!allocId) throw createError({ statusCode: 400, statusMessage: 'Allocation ID required' })
 
   // Validate parent network exists
   const network = networkRepository.getById(networkId)
-  if (!network) throw createError({ statusCode: 404, message: 'Network not found' })
+  if (!network) throw createError({ statusCode: 404, statusMessage: 'Network not found' })
 
   // Validate allocation exists and belongs to this network
   const allocation = ipAllocationRepository.getById(allocId)
-  if (!allocation) throw createError({ statusCode: 404, message: 'Allocation not found' })
+  if (!allocation) throw createError({ statusCode: 404, statusMessage: 'Allocation not found' })
   if (allocation.network_id !== networkId) {
-    throw createError({ statusCode: 404, message: 'Allocation does not belong to this network' })
+    throw createError({ statusCode: 404, statusMessage: 'Allocation does not belong to this network' })
   }
 
   const allSwitches = switchRepository.list()

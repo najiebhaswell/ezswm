@@ -31,11 +31,11 @@ export const vlanRepository = {
 
     const siteVlans = vlans.filter(v => v.site_id === data.site_id)
     if (siteVlans.some(v => v.vlan_id === data.vlan_id)) {
-      throw createError({ statusCode: 409, message: `VLAN ID ${data.vlan_id} already exists in this site` })
+      throw createError({ statusCode: 409, statusMessage: `VLAN ID ${data.vlan_id} already exists in this site` })
     }
 
     if (siteVlans.some(v => v.color === data.color)) {
-      throw createError({ statusCode: 409, message: `Color ${data.color} is already used by another VLAN in this site` })
+      throw createError({ statusCode: 409, statusMessage: `Color ${data.color} is already used by another VLAN in this site` })
     }
 
     const now = new Date().toISOString()
@@ -56,19 +56,19 @@ export const vlanRepository = {
     const vlans = this.list()
     const index = vlans.findIndex(v => v.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'VLAN not found' })
+      throw createError({ statusCode: 404, statusMessage: 'VLAN not found' })
     }
 
     const siteId = vlans[index]!.site_id
     if (data.vlan_id !== undefined && data.vlan_id !== vlans[index]!.vlan_id) {
       if (vlans.some(v => v.site_id === siteId && v.vlan_id === data.vlan_id)) {
-        throw createError({ statusCode: 409, message: `VLAN ID ${data.vlan_id} already exists in this site` })
+        throw createError({ statusCode: 409, statusMessage: `VLAN ID ${data.vlan_id} already exists in this site` })
       }
     }
 
     if (data.color !== undefined && data.color !== vlans[index]!.color) {
       if (vlans.some(v => v.site_id === siteId && v.color === data.color)) {
-        throw createError({ statusCode: 409, message: `Color ${data.color} is already used by another VLAN in this site` })
+        throw createError({ statusCode: 409, statusMessage: `Color ${data.color} is already used by another VLAN in this site` })
       }
     }
 

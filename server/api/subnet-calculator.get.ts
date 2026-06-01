@@ -6,13 +6,13 @@ export default defineEventHandler((event) => {
   const cidr = String(query.cidr || '')
 
   if (!cidr) {
-    throw createError({ statusCode: 400, message: 'CIDR is required. Example: 10.0.1.0/24 or 2001:db8::/48' })
+    throw createError({ statusCode: 400, statusMessage: 'CIDR is required. Example: 10.0.1.0/24 or 2001:db8::/48' })
   }
 
   // IPv6 branch
   if (cidr.includes(':')) {
     if (!isValidIPv6CIDR(cidr)) {
-      throw createError({ statusCode: 400, message: 'Invalid IPv6 CIDR notation. Example: 2001:db8::/48' })
+      throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 CIDR notation. Example: 2001:db8::/48' })
     }
     const info = parseIPv6Subnet(cidr)
     return {
@@ -36,7 +36,7 @@ export default defineEventHandler((event) => {
 
   // IPv4 branch (unchanged behaviour)
   if (!isValidCIDR(cidr)) {
-    throw createError({ statusCode: 400, message: 'Invalid CIDR notation. Example: 10.0.1.0/24 or 2001:db8::/48' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid CIDR notation. Example: 10.0.1.0/24 or 2001:db8::/48' })
   }
 
   const info = parseSubnet(cidr)

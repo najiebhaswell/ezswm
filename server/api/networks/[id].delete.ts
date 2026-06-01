@@ -1,6 +1,7 @@
 import { networkRepository } from '../../repositories/networkRepository'
 import { ipAllocationRepository } from '../../repositories/ipAllocationRepository'
 import { ipRangeRepository } from '../../repositories/ipRangeRepository'
+import { switchRepository } from '../../repositories/switchRepository'
 import { activityRepository } from '../../repositories/activityRepository'
 
 export default defineEventHandler(async (event) => {
@@ -26,9 +27,18 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Collect allocation IDs before deletion so port references can be cleaned up
+  const deletedAllocations = ipAllocationRepository.list(id)
+  const deletedAllocationIds = deletedAllocations.map(a => a.id)
+
   // Cascade delete related allocations and ranges
   ipAllocationRepository.deleteByNetworkId(id)
   ipRangeRepository.deleteByNetworkId(id)
+
+  // Clear any switch port references to deleted allocations
+  if (deletedAllocationIds.length > 0) {
+    switchRepository.clearAllocationReferences(deletedAllocationIds)
+  }
 
   // Clean up used_prefix range in parent if this was a child subnet
   if (existing.parent_network_id) {
@@ -46,7 +56,7 @@ export default defineEventHandler(async (event) => {
 
   networkRepository.delete(id)
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'delete',
     entity_type: 'network',

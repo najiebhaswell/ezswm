@@ -4,14 +4,14 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   if (!body || !body.data) {
-    throw createError({ statusCode: 400, message: 'Invalid backup format' })
+    throw createError({ statusCode: 400, statusMessage: 'Invalid backup format' })
   }
 
   // Validate required keys
   const requiredKeys = ['users', 'switches', 'vlans', 'networks', 'ipAllocations', 'ipRanges', 'layoutTemplates', 'lagGroups', 'activity', 'settings']
   for (const key of requiredKeys) {
     if (!(key in body.data)) {
-      throw createError({ statusCode: 400, message: `Missing data key: ${key}` })
+      throw createError({ statusCode: 400, statusMessage: `Missing data key: ${key}` })
     }
   }
 
@@ -69,6 +69,6 @@ export default defineEventHandler(async (event) => {
       // Best effort rollback
     }
     const message = error instanceof Error ? error.message : String(error)
-    throw createError({ statusCode: 500, message: `Restore failed: ${message}` })
+    throw createError({ statusCode: 500, statusMessage: `Restore failed: ${message}` })
   }
 })

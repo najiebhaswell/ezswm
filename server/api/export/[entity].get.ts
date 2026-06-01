@@ -13,7 +13,7 @@ const ENTITY_FILE_MAP: Record<string, string> = {
 export default defineEventHandler((event) => {
   const entity = event.context.params?.entity
   if (!entity || !ENTITY_FILE_MAP[entity]) {
-    throw createError({ statusCode: 400, message: `Unknown entity: ${entity}. Valid: ${Object.keys(ENTITY_FILE_MAP).join(', ')}` })
+    throw createError({ statusCode: 400, statusMessage: `Unknown entity: ${entity}. Valid: ${Object.keys(ENTITY_FILE_MAP).join(', ')}` })
   }
 
   const data = readJson(ENTITY_FILE_MAP[entity])

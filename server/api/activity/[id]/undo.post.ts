@@ -7,12 +7,12 @@ import { readJson, writeJson } from '../../../storage/jsonStorage'
 
 export default defineEventHandler((event) => {
   const id = event.context.params?.id
-  if (!id) throw createError({ statusCode: 400, message: 'Activity ID required' })
+  if (!id) throw createError({ statusCode: 400, statusMessage: 'Activity ID required' })
 
   const entry = activityRepository.getById(id)
-  if (!entry) throw createError({ statusCode: 404, message: 'Activity entry not found' })
+  if (!entry) throw createError({ statusCode: 404, statusMessage: 'Activity entry not found' })
   if (!entry.previous_state && entry.action !== 'create') {
-    throw createError({ statusCode: 400, message: 'No previous state available for undo' })
+    throw createError({ statusCode: 400, statusMessage: 'No previous state available for undo' })
   }
 
   const entityType = entry.entity_type
@@ -74,6 +74,6 @@ export default defineEventHandler((event) => {
     return { success: true, action: entry.action, entity_type: entityType }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
-    throw createError({ statusCode: 500, message: `Undo failed: ${message}` })
+    throw createError({ statusCode: 500, statusMessage: `Undo failed: ${message}` })
   }
 })

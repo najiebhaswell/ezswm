@@ -23,7 +23,7 @@ export const userRepository = {
     const users = this.list()
 
     if (users.some(u => u.username === data.username)) {
-      throw createError({ statusCode: 409, message: `Username '${data.username}' already exists` })
+      throw createError({ statusCode: 409, statusMessage: `Username '${data.username}' already exists` })
     }
 
     const now = new Date().toISOString()
@@ -43,7 +43,7 @@ export const userRepository = {
     const users = this.list()
     const index = users.findIndex(u => u.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'User not found' })
+      throw createError({ statusCode: 404, statusMessage: 'User not found' })
     }
 
     users[index] = {

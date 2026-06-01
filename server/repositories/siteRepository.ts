@@ -37,7 +37,7 @@ export const siteRepository = {
     const sites = this.list()
     const index = sites.findIndex(s => s.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'Site not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Site not found' })
     }
 
     sites[index] = {

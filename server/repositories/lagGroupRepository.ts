@@ -22,13 +22,13 @@ export const lagGroupRepository = {
   create(switchId: string, data: Omit<LAGGroup, 'id' | 'switch_id' | 'created_at' | 'updated_at'>): LAGGroup {
     const sw = switchRepository.getById(switchId)
     if (!sw) {
-      throw createError({ statusCode: 404, message: 'Switch not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
     }
 
     // Validate port ownership
     for (const portId of data.port_ids) {
       if (!sw.ports.some(p => p.id === portId)) {
-        throw createError({ statusCode: 400, message: `Port ${portId} does not belong to switch ${sw.name}` })
+        throw createError({ statusCode: 400, statusMessage: `Port ${portId} does not belong to switch ${sw.name}` })
       }
     }
 
@@ -37,7 +37,7 @@ export const lagGroupRepository = {
     for (const portId of data.port_ids) {
       const existingLag = existingGroups.find(g => g.port_ids.includes(portId))
       if (existingLag) {
-        throw createError({ statusCode: 409, message: `Port is already in LAG group '${existingLag.name}'` })
+        throw createError({ statusCode: 409, statusMessage: `Port is already in LAG group '${existingLag.name}'` })
       }
     }
 
@@ -66,7 +66,7 @@ export const lagGroupRepository = {
     const groups = readJson<LAGGroup[]>(FILE_NAME)
     const index = groups.findIndex(g => g.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'LAG group not found' })
+      throw createError({ statusCode: 404, statusMessage: 'LAG group not found' })
     }
 
     const current = groups[index]!
@@ -74,12 +74,12 @@ export const lagGroupRepository = {
     if (data.port_ids) {
       const sw = switchRepository.getById(current.switch_id)
       if (!sw) {
-        throw createError({ statusCode: 404, message: 'Switch not found' })
+        throw createError({ statusCode: 404, statusMessage: 'Switch not found' })
       }
 
       for (const portId of data.port_ids) {
         if (!sw.ports.some(p => p.id === portId)) {
-          throw createError({ statusCode: 400, message: `Port ${portId} does not belong to switch` })
+          throw createError({ statusCode: 400, statusMessage: `Port ${portId} does not belong to switch` })
         }
       }
 

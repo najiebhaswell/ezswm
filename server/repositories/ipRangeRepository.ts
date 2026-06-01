@@ -32,7 +32,7 @@ export const ipRangeRepository = {
   create(networkId: string, data: Omit<IPRange, 'id' | 'network_id' | 'created_at' | 'updated_at'>): IPRange {
     const network = networkRepository.getById(networkId)
     if (!network) {
-      throw createError({ statusCode: 404, message: 'Network not found' })
+      throw createError({ statusCode: 404, statusMessage: 'Network not found' })
     }
 
     const v6 = isV6Subnet(network.subnet)
@@ -44,45 +44,45 @@ export const ipRangeRepository = {
       const msg = (v6 ? prefix === 128 : prefix === 32)
         ? 'DHCP is not applicable for host-route networks.'
         : 'DHCP is not applicable for point-to-point networks.'
-      throw createError({ statusCode: 400, message: msg })
+      throw createError({ statusCode: 400, statusMessage: msg })
     }
 
     // Validate start/end IP format
     if (v6) {
       if (!isValidIPv6(data.start_ip) || !isValidIPv6(data.end_ip)) {
-        throw createError({ statusCode: 400, message: 'Invalid IPv6 address in range' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 address in range' })
       }
     } else {
       if (!isValidIPv4(data.start_ip) || !isValidIPv4(data.end_ip)) {
-        throw createError({ statusCode: 400, message: 'Invalid IP address in range' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid IP address in range' })
       }
     }
 
     // Validate start <= end
     if (v6) {
       if (ipv6ToBigInt(data.start_ip) > ipv6ToBigInt(data.end_ip)) {
-        throw createError({ statusCode: 400, message: 'Start IP must be less than or equal to end IP' })
+        throw createError({ statusCode: 400, statusMessage: 'Start IP must be less than or equal to end IP' })
       }
     } else {
       if (ipToLong(data.start_ip) > ipToLong(data.end_ip)) {
-        throw createError({ statusCode: 400, message: 'Start IP must be less than or equal to end IP' })
+        throw createError({ statusCode: 400, statusMessage: 'Start IP must be less than or equal to end IP' })
       }
     }
 
     // Validate start and end are within subnet
     if (v6) {
       if (!isIPv6InSubnet(data.start_ip, network.subnet)) {
-        throw createError({ statusCode: 400, message: ipv6SubnetRangeError(data.start_ip, network.subnet) })
+        throw createError({ statusCode: 400, statusMessage: ipv6SubnetRangeError(data.start_ip, network.subnet) })
       }
       if (!isIPv6InSubnet(data.end_ip, network.subnet)) {
-        throw createError({ statusCode: 400, message: ipv6SubnetRangeError(data.end_ip, network.subnet) })
+        throw createError({ statusCode: 400, statusMessage: ipv6SubnetRangeError(data.end_ip, network.subnet) })
       }
     } else {
       if (!isIPInSubnet(data.start_ip, network.subnet)) {
-        throw createError({ statusCode: 400, message: subnetRangeError(data.start_ip, network.subnet) })
+        throw createError({ statusCode: 400, statusMessage: subnetRangeError(data.start_ip, network.subnet) })
       }
       if (!isIPInSubnet(data.end_ip, network.subnet)) {
-        throw createError({ statusCode: 400, message: subnetRangeError(data.end_ip, network.subnet) })
+        throw createError({ statusCode: 400, statusMessage: subnetRangeError(data.end_ip, network.subnet) })
       }
     }
 
@@ -93,7 +93,7 @@ export const ipRangeRepository = {
         ? doIPv6RangesOverlap(data.start_ip, data.end_ip, existing.start_ip, existing.end_ip)
         : doRangesOverlap(data.start_ip, data.end_ip, existing.start_ip, existing.end_ip)
       if (overlaps) {
-        throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with existing range ${existing.start_ip}-${existing.end_ip} (${existing.type})` })
+        throw createError({ statusCode: 409, statusMessage: `Range ${data.start_ip}-${data.end_ip} overlaps with existing range ${existing.start_ip}-${existing.end_ip} (${existing.type})` })
       }
     }
 
@@ -108,7 +108,7 @@ export const ipRangeRepository = {
           const childStart = ipv6ToBigInt(childInfo.network_address)
           const childEnd = ipv6ToBigInt(childInfo.last_address)
           if (startLong <= childEnd && childStart <= endLong) {
-            throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
+            throw createError({ statusCode: 409, statusMessage: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
           }
         }
       } else {
@@ -119,7 +119,7 @@ export const ipRangeRepository = {
           const childStart = ipToLong(childInfo.network_address)
           const childEnd = ipToLong(childInfo.broadcast_address)
           if (startLong <= childEnd && childStart <= endLong) {
-            throw createError({ statusCode: 409, message: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
+            throw createError({ statusCode: 409, statusMessage: `Range ${data.start_ip}-${data.end_ip} overlaps with child subnet ${child.subnet} (${child.name}). Use type 'used_prefix' to mark delegated ranges.` })
           }
         }
       }
@@ -144,7 +144,7 @@ export const ipRangeRepository = {
     const ranges = readJson<IPRange[]>(FILE_NAME)
     const index = ranges.findIndex(r => r.id === id)
     if (index === -1) {
-      throw createError({ statusCode: 404, message: 'IP range not found' })
+      throw createError({ statusCode: 404, statusMessage: 'IP range not found' })
     }
 
     const current = ranges[index]!
@@ -157,28 +157,28 @@ export const ipRangeRepository = {
     // Validate format
     if (v6) {
       if (data.start_ip && !isValidIPv6(data.start_ip)) {
-        throw createError({ statusCode: 400, message: 'Invalid IPv6 start address' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 start address' })
       }
       if (data.end_ip && !isValidIPv6(data.end_ip)) {
-        throw createError({ statusCode: 400, message: 'Invalid IPv6 end address' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid IPv6 end address' })
       }
     } else {
       if (data.start_ip && !isValidIPv4(data.start_ip)) {
-        throw createError({ statusCode: 400, message: 'Invalid start IP' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid start IP' })
       }
       if (data.end_ip && !isValidIPv4(data.end_ip)) {
-        throw createError({ statusCode: 400, message: 'Invalid end IP' })
+        throw createError({ statusCode: 400, statusMessage: 'Invalid end IP' })
       }
     }
 
     // Validate start <= end
     if (v6) {
       if (ipv6ToBigInt(startIp) > ipv6ToBigInt(endIp)) {
-        throw createError({ statusCode: 400, message: 'Start IP must be less than or equal to end IP' })
+        throw createError({ statusCode: 400, statusMessage: 'Start IP must be less than or equal to end IP' })
       }
     } else {
       if (ipToLong(startIp) > ipToLong(endIp)) {
-        throw createError({ statusCode: 400, message: 'Start IP must be less than or equal to end IP' })
+        throw createError({ statusCode: 400, statusMessage: 'Start IP must be less than or equal to end IP' })
       }
     }
 
@@ -186,17 +186,17 @@ export const ipRangeRepository = {
     if (network) {
       if (v6) {
         if (!isIPv6InSubnet(startIp, network.subnet)) {
-          throw createError({ statusCode: 400, message: ipv6SubnetRangeError(startIp, network.subnet) })
+          throw createError({ statusCode: 400, statusMessage: ipv6SubnetRangeError(startIp, network.subnet) })
         }
         if (!isIPv6InSubnet(endIp, network.subnet)) {
-          throw createError({ statusCode: 400, message: ipv6SubnetRangeError(endIp, network.subnet) })
+          throw createError({ statusCode: 400, statusMessage: ipv6SubnetRangeError(endIp, network.subnet) })
         }
       } else {
         if (!isIPInSubnet(startIp, network.subnet)) {
-          throw createError({ statusCode: 400, message: subnetRangeError(startIp, network.subnet) })
+          throw createError({ statusCode: 400, statusMessage: subnetRangeError(startIp, network.subnet) })
         }
         if (!isIPInSubnet(endIp, network.subnet)) {
-          throw createError({ statusCode: 400, message: subnetRangeError(endIp, network.subnet) })
+          throw createError({ statusCode: 400, statusMessage: subnetRangeError(endIp, network.subnet) })
         }
       }
     }
@@ -208,7 +208,7 @@ export const ipRangeRepository = {
         ? doIPv6RangesOverlap(startIp, endIp, existing.start_ip, existing.end_ip)
         : doRangesOverlap(startIp, endIp, existing.start_ip, existing.end_ip)
       if (overlaps) {
-        throw createError({ statusCode: 409, message: `Range ${startIp}-${endIp} overlaps with existing range ${existing.start_ip}-${existing.end_ip} (${existing.type})` })
+        throw createError({ statusCode: 409, statusMessage: `Range ${startIp}-${endIp} overlaps with existing range ${existing.start_ip}-${existing.end_ip} (${existing.type})` })
       }
     }
 

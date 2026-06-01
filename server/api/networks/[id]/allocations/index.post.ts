@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const created = ipAllocationRepository.create(id, parsed)
 
-  activityRepository.log({
+  await activityRepository.log({
     user_id: event.context.auth?.userId,
     action: 'create',
     entity_type: 'ip_allocation',
